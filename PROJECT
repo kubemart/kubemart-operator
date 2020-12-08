@@ -1,0 +1,11 @@
+domain: bizaar.civo.com
+layout: go.kubebuilder.io/v2
+projectName: bizaar-operator
+repo: github.com/civo/bizaar-operator
+resources:
+- group: app
+  kind: App
+  version: v1alpha1
+version: 3-alpha
+plugins:
+  go.sdk.operatorframework.io/v2-alpha: {}

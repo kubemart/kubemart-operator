@@ -1,0 +1,7 @@
+apiVersion: app.bizaar.civo.com/v1alpha1
+kind: App
+metadata:
+  name: app-sample
+spec:
+  name: rabbitmq
+  giturl: https://github.com/civo/kubernetes-marketplace/tree/master/rabbitmq
