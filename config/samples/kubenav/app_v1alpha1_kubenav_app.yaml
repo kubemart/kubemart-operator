@@ -1,0 +1,9 @@
+apiVersion: app.bizaar.civo.com/v1alpha1
+kind: App
+metadata:
+  name: kubenav
+  namespace: default # where to place the App CR # TODO - run in different namespace?
+spec:
+  name: kubenav
+  giturl: https://github.com/civo/kubernetes-marketplace/tree/master/kubenav
+  targetstatus: installed

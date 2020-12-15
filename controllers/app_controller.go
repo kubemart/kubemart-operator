@@ -19,15 +19,14 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"time"
 
 	appv1alpha1 "github.com/civo/bizaar-operator/api/v1alpha1"
 	"github.com/go-logr/logr"
-	"github.com/prometheus/common/log"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -50,6 +49,7 @@ type AppReconciler struct {
 func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	logger := r.Log.WithValues("app", req.NamespacedName)
+	logger.Info("App Reconcile started...")
 
 	// Fetch the App instance
 	appInstance := &appv1alpha1.App{}
@@ -58,124 +58,120 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			// Stop the Reconcile
 			return reconcile.Result{}, nil
 		}
-		// Error reading the object
+		// Error reading the object. Restart the Reconcile.
 		return reconcile.Result{}, err
 	}
 
-	// When the CRD is new and there were no prior installation
-	if appInstance.Status.NumOfJobs == 0 && appInstance.Status.LastStatus == "" {
-		log.Info("---------------------------- LAUNCHING A NEW JOB ----------------------------")
+	lastStatus := appInstance.Status.LastStatus
+	targetStatus := appInstance.Spec.TargetStatus
+
+	// For `bizaar install <app_name>`
+	if lastStatus == "" && targetStatus == "installed" {
+		logger.Info("Installing new app...")
 		job := newJobPod(appInstance)
 		// Set App instance as the owner of the Job
 		if err := controllerutil.SetControllerReference(appInstance, job, r.Scheme); err != nil {
+			// Restart the Reconcile
 			return reconcile.Result{}, err
 		}
+		// Create a Job
 		err = r.Create(context.Background(), job)
-		// Failed to launch a new Job
 		if err != nil {
 			logger.Error(err, "Failed to create job", "job.name", job.Name)
+			// Restart the Reconcile
 			return reconcile.Result{}, err
 		}
 		// New Job was launched successfully
-		logger.Info("Launched job", "job.name", job.Name)
+		logger.Info("New Job was launched successfully", "job.name", job.Name)
 		// Refresh the App instance first so we can update it
 		err = r.Get(ctx, req.NamespacedName, appInstance)
 		if err != nil {
 			logger.Error(err, "Failed to refresh App instance")
+			// Restart the Reconcile
 			return reconcile.Result{}, err
 		}
-		numOfJobs := appInstance.Status.NumOfJobs + 1
+		jobStatus := "installation_started"
+		timeNow := metav1.Now()
+		jobInfo := appv1alpha1.JobInfo{
+			JobStatus: jobStatus,
+			StartedAt: &timeNow,
+		}
+		jobsExecuted := make(map[string]appv1alpha1.JobInfo)
+		jobsExecuted[job.Name] = jobInfo
 		appInstance.Status = appv1alpha1.AppStatus{
-			LastStatus: "RUNNING",
-			NumOfJobs:  numOfJobs,
+			LastStatus:      jobStatus,
+			LastJobExecuted: job.Name,
+			JobsExecuted:    jobsExecuted,
 		}
 		err = r.Status().Update(ctx, appInstance)
 		if err != nil {
 			logger.Error(err, "Failed to update status")
+			// Restart the Reconcile
 			return reconcile.Result{}, err
 		}
+		// Race conditions safety net
+		time.Sleep(3 * time.Second)
+		// Stop the Reconcile
+		return ctrl.Result{}, nil
 	}
 
-	// When the controller created more than one active jobs due to concurrency
-	desiredJobCount := 1
-	if appInstance.Status.NumOfJobs > desiredJobCount && appInstance.Status.LastStatus == "RUNNING" {
-		log.Info("---------------------------- SCALING DOWN JOBS ----------------------------")
-		currentNum := appInstance.Status.NumOfJobs
-		logger.Info("Scaling down jobs", "Current number", currentNum, "Desired number", desiredJobCount)
-		diff := currentNum - desiredJobCount
+	// TODO
+	// Another reconcile loop to watch the Job progress
+	// * If Job went OK, the lastStatus changed from `installation_started` to `installation_finished` and
+	// * If Job failed, the lastStatus changed from `installation_started` to `installation_failed`
+	// Both cases should change `targetStatus` to "" (empty string) in the CRD YAML file
 
-		// List all jobs owned by this app instance
-		jobList := &batchv1.JobList{}
-		labelz := map[string]string{
-			"bizaar-app-name":   appInstance.Spec.Name,
-			"bizaar-job-status": "RUNNING",
-		}
-		labelSelector := labels.SelectorFromSet(labelz)
-		listOpts := &client.ListOptions{Namespace: appInstance.Namespace, LabelSelector: labelSelector}
-		if err = r.List(context.Background(), jobList, listOpts); err != nil {
-			return reconcile.Result{}, err
-		}
-
-		// Delete extra jobs
-		toDeleteJobs := jobList.Items[:diff]
-		for _, toDeleteJob := range toDeleteJobs {
-			fmt.Println("To delete job -->", toDeleteJob.Name)
-			deletePropagationBg := metav1.DeletePropagationBackground
-			err = r.Delete(context.Background(), &toDeleteJob, &client.DeleteOptions{
-				PropagationPolicy: &deletePropagationBg,
-			})
-			if err != nil {
-				r.Log.Error(err, "Failed to delete job", "job.name", toDeleteJob.Name)
-				return reconcile.Result{}, err
-			}
-			// Refresh the App instance first so we can update it
-			err = r.Get(ctx, req.NamespacedName, appInstance)
-			if err != nil {
-				logger.Error(err, "Failed to refresh App instance")
-				return reconcile.Result{}, err
-			}
-			numOfJobs := appInstance.Status.NumOfJobs - 1
-			appInstance.Status = appv1alpha1.AppStatus{
-				LastStatus: "RUNNING",
-				NumOfJobs:  numOfJobs,
-			}
-			err = r.Status().Update(ctx, appInstance)
-			if err != nil {
-				logger.Error(err, "Failed to update status")
-				return reconcile.Result{}, err
-			}
-		}
-		return reconcile.Result{Requeue: true}, nil
+	if lastStatus == "installation_finished" && targetStatus == "updated" {
+		logger.Info("Updating app...")
+		// Stop the Reconcile
+		return ctrl.Result{}, nil
 	}
 
-	// End of reconcile logic
+	if lastStatus == "installation_finished" && targetStatus == "deleted" {
+		logger.Info("Deleting app...")
+		// Stop the Reconcile
+		return ctrl.Result{}, nil
+	}
+
+	logger.Info("No action needed", "LastStatus", lastStatus, "TargetStatus", targetStatus)
+	// Stop the Reconcile
 	return ctrl.Result{}, nil
 }
 
 // newJobPod is the pod definition that contains helm, kubectl, curl, git & Civo marketplace code
 func newJobPod(cr *appv1alpha1.App) *batchv1.Job {
-	labels := map[string]string{
-		"bizaar-app-name":   cr.Spec.Name,
-		"bizaar-job-status": "RUNNING",
-	}
+	// labels := map[string]string{
+	// 	"bizaar-app-name":   cr.Spec.Name,
+	// 	"bizaar-job-status": "RUNNING",
+	// }
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: cr.Name + "-job-", // Job name example: app-sample-job-jzxbw
 			Namespace:    cr.Namespace,
-			Labels:       labels,
+			// Labels:       labels,
 		},
 		Spec: batchv1.JobSpec{
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
-
-					RestartPolicy: "OnFailure",
+					ServiceAccountName: "bizaar-daemon-svc-acc",
+					RestartPolicy:      "OnFailure",
 					Containers: []corev1.Container{
 						{
-							Name:    "bizaar",
-							Image:   "ubuntu",                  // TODO - change to "civo/image:tag"
-							Command: []string{"sleep", "3600"}, // TODO - replace with helm/kubectl commands
+							Name:            "bizaar-daemon",
+							Image:           "civo/bizaar-daemon:v1alpha1",
+							ImagePullPolicy: corev1.PullAlways,
+							Command: []string{
+								"/bin/sh", "-c",
+							},
+							Args: []string{
+								// Note:
+								// The `--namespace` is the namespace where the App custom resource is running.
+								// Not where the actual workload i.e. wordpress is running.
+								fmt.Sprintf("./main --app-name %s --crd-app-name %s --namespace default && cd scripts && ./run.sh", cr.Spec.Name, cr.Name),
+							},
 						},
 					},
 				},
@@ -191,6 +187,3 @@ func (r *AppReconciler) SetupWithManager(mgr ctrl.Manager) error {
 		Owns(&batchv1.Job{}).
 		Complete(r)
 }
-
-// TODO
-// - After the Job is complete, update `LastStatus` to `COMPLETED`

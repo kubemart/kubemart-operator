@@ -1,4 +1,5 @@
 ## Append samples you want in your CSV to this file as resources ##
 resources:
 - app_v1alpha1_app.yaml
+- app_v1alpha1_jobwatcher.yaml
 # +kubebuilder:scaffold:manifestskustomizesamples

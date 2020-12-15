@@ -1,7 +1,9 @@
 apiVersion: app.bizaar.civo.com/v1alpha1
 kind: App
 metadata:
-  name: app-sample
+  name: rabbitmq
+  namespace: default # where to place the App CR # TODO - run in different namespace?
 spec:
   name: rabbitmq
   giturl: https://github.com/civo/kubernetes-marketplace/tree/master/rabbitmq
+  targetstatus: installed

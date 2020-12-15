@@ -28,8 +28,23 @@ type AppSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	GitURL string `json:"giturl,omitempty"`
-	Name   string `json:"name,omitempty"`
+	GitURL           string `json:"giturl,omitempty"`
+	GitHash          string `json:"githash,omitempty"`
+	GitFile          string `json:"gitfile,omitempty"` // main tracking file (to be used for `bizaar app update`)
+	Name             string `json:"name,omitempty"`    // app name i.e. wordpress
+	TargetStatus     string `json:"targetstatus,omitempty"`
+	HelmReleaseName  string `json:"helmreleasename,omitempty"`
+	HelmMetadataName string `json:"helmmetadataname,omitempty"`
+}
+
+// JobInfo contains information about each Job we launched under an App
+type JobInfo struct {
+	JobStatus string `json:"jobstatus"`
+
+	// Using pointer as a temp hack due to this issue:
+	// https://github.com/kubernetes/kubernetes/issues/86811
+	StartedAt *metav1.Time `json:"startedat,omitempty"`
+	EndedAt   *metav1.Time `json:"endedat,omitempty"`
 }
 
 // AppStatus defines the observed state of App
@@ -37,8 +52,10 @@ type AppStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	LastStatus string `json:"laststatus"`
-	NumOfJobs  int    `json:"numofjobs"`
+	LastStatus      string             `json:"laststatus"`
+	LastJobExecuted string             `json:"lastjobexecuted"`
+	JobsExecuted    map[string]JobInfo `json:"jobsexecuted"`
+	// JobFailureMessage string   `json:"jobfailuremessage"`
 }
 
 // +kubebuilder:object:root=true

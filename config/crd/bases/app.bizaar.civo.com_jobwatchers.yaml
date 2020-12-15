@@ -6,20 +6,20 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.3.0
   creationTimestamp: null
-  name: apps.app.bizaar.civo.com
+  name: jobwatchers.app.bizaar.civo.com
 spec:
   group: app.bizaar.civo.com
   names:
-    kind: App
-    listKind: AppList
-    plural: apps
-    singular: app
+    kind: JobWatcher
+    listKind: JobWatcherList
+    plural: jobwatchers
+    singular: jobwatcher
   scope: Namespaced
   subresources:
     status: {}
   validation:
     openAPIV3Schema:
-      description: App is the Schema for the apps API
+      description: JobWatcher is the Schema for the jobwatchers API
       properties:
         apiVersion:
           description: 'APIVersion defines the versioned schema of this representation
@@ -34,53 +34,47 @@ spec:
         metadata:
           type: object
         spec:
-          description: AppSpec defines the desired state of App
+          description: JobWatcherSpec defines the desired state of JobWatcher
           properties:
-            gitfile:
-              type: string
-            githash:
-              type: string
-            giturl:
-              type: string
-            helmmetadataname:
-              type: string
-            helmreleasename:
-              type: string
-            name:
-              type: string
-            targetstatus:
-              type: string
-          type: object
-        status:
-          description: AppStatus defines the observed state of App
-          properties:
-            jobsexecuted:
-              additionalProperties:
-                description: JobInfo contains information about each Job we launched
-                  under an App
-                properties:
-                  endedat:
-                    format: date-time
-                    type: string
-                  jobstatus:
-                    type: string
-                  startedat:
-                    description: 'Using pointer as a temp hack due to this issue:
-                      https://github.com/kubernetes/kubernetes/issues/86811'
-                    format: date-time
-                    type: string
-                required:
-                - jobstatus
-                type: object
-              type: object
-            lastjobexecuted:
-              type: string
-            laststatus:
+            completedTTL:
+              description: Time to live in seconds for a completed job
+              format: int64
+              minimum: 0
+              type: integer
+            failedTTL:
+              description: Time to live in seconds for a failed job
+              format: int64
+              minimum: 0
+              type: integer
+            frequency:
+              description: Frequency of the TTL checks
+              format: int64
+              minimum: 10
+              type: integer
+            namespaces:
+              description: List of namespaces to watch
+              items:
+                type: string
+              minItems: 0
+              type: array
+            watchfor:
+              description: The metadata.name of App CRD that launched this JobWatcher
               type: string
           required:
-          - jobsexecuted
-          - lastjobexecuted
-          - laststatus
+          - completedTTL
+          - failedTTL
+          - frequency
+          - watchfor
+          type: object
+        status:
+          description: JobWatcherStatus defines the observed state of JobWatcher
+          properties:
+            lastFinished:
+              format: date-time
+              type: string
+            lastStarted:
+              format: date-time
+              type: string
           type: object
       type: object
   version: v1alpha1
