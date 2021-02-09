@@ -36,51 +36,60 @@ spec:
         spec:
           description: AppSpec defines the desired state of App
           properties:
-            gitfile:
-              type: string
-            githash:
-              type: string
-            giturl:
-              type: string
-            helmmetadataname:
-              type: string
-            helmreleasename:
-              type: string
+            dependencies:
+              items:
+                type: string
+              type: array
             name:
               type: string
-            targetstatus:
+            plan:
+              type: integer
+            target_status:
               type: string
           type: object
         status:
           description: AppStatus defines the observed state of App
           properties:
-            jobsexecuted:
+            configurations:
+              items:
+                description: Configuration defines the app's configuration. For example,
+                  "mariadb" app will have "MYSQL_ROOT_PASSWORD" configuration.
+                properties:
+                  key:
+                    type: string
+                  value:
+                    type: string
+                  value_is_base64:
+                    type: boolean
+                type: object
+              type: array
+            jobs_executed:
               additionalProperties:
                 description: JobInfo contains information about each Job we launched
                   under an App
                 properties:
-                  endedat:
+                  ended_at:
                     format: date-time
                     type: string
-                  jobstatus:
+                  job_status:
                     type: string
-                  startedat:
+                  started_at:
                     description: 'Using pointer as a temp hack due to this issue:
                       https://github.com/kubernetes/kubernetes/issues/86811'
                     format: date-time
                     type: string
                 required:
-                - jobstatus
+                - job_status
                 type: object
               type: object
-            lastjobexecuted:
+            last_job_executed:
               type: string
-            laststatus:
+            last_status:
               type: string
           required:
-          - jobsexecuted
-          - lastjobexecuted
-          - laststatus
+          - jobs_executed
+          - last_job_executed
+          - last_status
           type: object
       type: object
   version: v1alpha1

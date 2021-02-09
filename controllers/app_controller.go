@@ -19,20 +19,27 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	appv1alpha1 "github.com/civo/bizaar-operator/api/v1alpha1"
+	"github.com/civo/bizaar-operator/pkg/utils"
 	"github.com/go-logr/logr"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
+	v1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
+
+// +kubebuilder:rbac:groups=app.bizaar.civo.com,resources=apps,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=app.bizaar.civo.com,resources=apps/status,verbs=get;update;patch
 
 // AppReconciler reconciles a App object
 type AppReconciler struct {
@@ -41,15 +48,19 @@ type AppReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// +kubebuilder:rbac:groups=app.bizaar.civo.com,resources=apps,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=app.bizaar.civo.com,resources=apps/status,verbs=get;update;patch
+// BizaarConfigMap is used when reading ConfigMap
+type BizaarConfigMap struct {
+	EmailAddress string
+	DomainName   string
+	ClusterName  string
+	MasterIP     string
+}
 
 // Reconcile is called either when one of our CRDs change
 // or if the returned ctrl.Result isn’t empty (or an error is returned)
 func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	logger := r.Log.WithValues("app", req.NamespacedName)
-	logger.Info("App Reconcile started...")
 
 	// Fetch the App instance
 	appInstance := &appv1alpha1.App{}
@@ -71,12 +82,118 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// For `bizaar install <app_name>`
 	if lastStatus == "" && targetStatus == "installed" {
 		logger.Info("Installing new app...")
+		jobsExecuted := make(map[string]appv1alpha1.JobInfo)
 		job := newJobPod(appInstance)
 		// Set App instance as the owner of the Job
 		if err := controllerutil.SetControllerReference(appInstance, job, r.Scheme); err != nil {
 			// Restart the Reconcile
 			return reconcile.Result{}, err
 		}
+
+		configMap, err := r.GetBizaarConfigMap()
+		if err != nil {
+			return reconcile.Result{}, err // restart reconcile
+		}
+
+		configurations, err := utils.GetAppConfigurations(appInstance.Name)
+		if err != nil {
+			return reconcile.Result{}, err // restart reconcile
+		}
+
+		configs := []appv1alpha1.Configuration{}
+		for _, configuration := range configurations {
+			configKey := configuration.Key
+			configTemplate := configuration.Template
+
+			justVariableName, err := utils.ExtractBizaarConfigTemplate(configTemplate)
+			if err != nil {
+				return reconcile.Result{}, err // restart reconcile
+			}
+
+			if strings.Contains(configTemplate, "BIZAAR:ALPHANUMERIC") {
+				length, err := utils.ExtractNumFromBizaarConfigTemplate(configTemplate)
+				if err != nil {
+					return reconcile.Result{}, err // restart reconcile
+				}
+
+				randomChars, err := utils.GenerateRandomAlphanumeric(length, appInstance.Name, string(appInstance.UID))
+				if err != nil {
+					return reconcile.Result{}, err // restart reconcile
+				}
+
+				initialValue := strings.ReplaceAll(configTemplate, justVariableName, randomChars)
+				base64Encoded := utils.GetBase64String(initialValue)
+				configs = append(configs, appv1alpha1.Configuration{
+					Key:           configKey,
+					Value:         base64Encoded,
+					ValueIsBase64: true,
+				})
+			}
+
+			if strings.Contains(configTemplate, "BIZAAR:WORDS") {
+				length, err := utils.ExtractNumFromBizaarConfigTemplate(configTemplate)
+				if err != nil {
+					return reconcile.Result{}, err // restart reconcile
+				}
+
+				randomWords := utils.GenerateRandomWords(length, appInstance.Name, string(appInstance.UID))
+				initialValue := strings.ReplaceAll(configTemplate, justVariableName, randomWords)
+				base64Encoded := utils.GetBase64String(initialValue)
+				configs = append(configs, appv1alpha1.Configuration{
+					Key:           configKey,
+					Value:         base64Encoded,
+					ValueIsBase64: true,
+				})
+			}
+
+			if strings.Contains(configTemplate, "BIZAAR:CLUSTER_NAME") {
+				clusterName := configMap.ClusterName
+				value := strings.ReplaceAll(configTemplate, justVariableName, clusterName)
+				configs = append(configs, appv1alpha1.Configuration{
+					Key:   configKey,
+					Value: value,
+				})
+			}
+
+			if strings.Contains(configTemplate, "BIZAAR:DOMAIN_NAME") {
+				domainName := configMap.DomainName
+				value := strings.ReplaceAll(configTemplate, justVariableName, domainName)
+				configs = append(configs, appv1alpha1.Configuration{
+					Key:   configKey,
+					Value: value,
+				})
+			}
+
+			if strings.Contains(configTemplate, "BIZAAR:EMAIL_ADDRESS") {
+				emailAddress := configMap.EmailAddress
+				value := strings.ReplaceAll(configTemplate, justVariableName, emailAddress)
+				configs = append(configs, appv1alpha1.Configuration{
+					Key:   configKey,
+					Value: value,
+				})
+			}
+
+			if strings.Contains(configTemplate, "BIZAAR:MASTER_IP") {
+				masterIP := configMap.MasterIP
+				value := strings.ReplaceAll(configTemplate, justVariableName, masterIP)
+				configs = append(configs, appv1alpha1.Configuration{
+					Key:   configKey,
+					Value: value,
+				})
+			}
+		}
+
+		appInstance.Status = appv1alpha1.AppStatus{
+			LastStatus:     "pre_installation_started",
+			JobsExecuted:   jobsExecuted,
+			Configurations: configs,
+		}
+		err = r.Status().Update(ctx, appInstance)
+		if err != nil {
+			logger.Error(err, "Failed to update status")
+			return reconcile.Result{}, err // restart reconcile
+		}
+
 		// Create a Job
 		err = r.Create(context.Background(), job)
 		if err != nil {
@@ -84,8 +201,8 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			// Restart the Reconcile
 			return reconcile.Result{}, err
 		}
-		// New Job was launched successfully
 		logger.Info("New Job was launched successfully", "job.name", job.Name)
+
 		// Refresh the App instance first so we can update it
 		err = r.Get(ctx, req.NamespacedName, appInstance)
 		if err != nil {
@@ -99,12 +216,12 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			JobStatus: jobStatus,
 			StartedAt: &timeNow,
 		}
-		jobsExecuted := make(map[string]appv1alpha1.JobInfo)
 		jobsExecuted[job.Name] = jobInfo
 		appInstance.Status = appv1alpha1.AppStatus{
 			LastStatus:      jobStatus,
 			LastJobExecuted: job.Name,
 			JobsExecuted:    jobsExecuted,
+			Configurations:  configs,
 		}
 		err = r.Status().Update(ctx, appInstance)
 		if err != nil {
@@ -112,6 +229,7 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			// Restart the Reconcile
 			return reconcile.Result{}, err
 		}
+
 		// Race conditions safety net
 		time.Sleep(3 * time.Second)
 		// Stop the Reconcile
@@ -136,9 +254,28 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
-	logger.Info("No action needed", "LastStatus", lastStatus, "TargetStatus", targetStatus)
 	// Stop the Reconcile
 	return ctrl.Result{}, nil
+}
+
+// GetBizaarConfigMap will fetch "bizaar-config" ConfigMap and returns BizaarConfigMap
+func (r *AppReconciler) GetBizaarConfigMap() (*BizaarConfigMap, error) {
+	bcm := &BizaarConfigMap{}
+	configMap := &v1.ConfigMap{}
+	err := r.Client.Get(context.Background(), types.NamespacedName{
+		Name:      "bizaar-config",
+		Namespace: "bizaar",
+	}, configMap)
+	if err != nil {
+		return bcm, err
+	}
+
+	data := configMap.Data
+	bcm.EmailAddress = data["email"]
+	bcm.DomainName = data["domain"]
+	bcm.ClusterName = data["cluster_name"]
+	bcm.MasterIP = data["master_ip"]
+	return bcm, nil
 }
 
 // newJobPod is the pod definition that contains helm, kubectl, curl, git & Civo marketplace code
@@ -170,7 +307,7 @@ func newJobPod(cr *appv1alpha1.App) *batchv1.Job {
 								// Note:
 								// The `--namespace` is the namespace where the App custom resource is running.
 								// Not where the actual workload i.e. wordpress is running.
-								fmt.Sprintf("./main --app-name %s --crd-app-name %s --namespace default && cd scripts && ./run.sh", cr.Spec.Name, cr.Name),
+								fmt.Sprintf("./main --app-name %s --namespace default && cd scripts && ./install.sh", cr.Spec.Name),
 							},
 						},
 					},
