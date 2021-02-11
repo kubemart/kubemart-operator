@@ -81,14 +81,8 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// For `bizaar install <app_name>`
 	if lastStatus == "" && targetStatus == "installed" {
-		logger.Info("Installing new app...")
+		logger.Info("Entering pre-install stage")
 		jobsExecuted := make(map[string]appv1alpha1.JobInfo)
-		job := newJobPod(appInstance)
-		// Set App instance as the owner of the Job
-		if err := controllerutil.SetControllerReference(appInstance, job, r.Scheme); err != nil {
-			// Restart the Reconcile
-			return reconcile.Result{}, err
-		}
 
 		configMap, err := r.GetBizaarConfigMap()
 		if err != nil {
@@ -183,6 +177,19 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			}
 		}
 
+		// app plan
+		appPlan := appInstance.Spec.Plan
+		if appPlan > 0 {
+			planVariableName, err := utils.GetAppPlanVariableName(appInstance.Spec.Name)
+			if err != nil {
+				return reconcile.Result{}, err // restart reconcile
+			}
+			configs = append(configs, appv1alpha1.Configuration{
+				Key:   planVariableName,
+				Value: fmt.Sprintf("%dGi", appPlan),
+			})
+		}
+
 		appInstance.Status = appv1alpha1.AppStatus{
 			LastStatus:     "pre_installation_started",
 			JobsExecuted:   jobsExecuted,
@@ -192,6 +199,115 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		if err != nil {
 			logger.Error(err, "Failed to update status")
 			return reconcile.Result{}, err // restart reconcile
+		}
+
+		// Race conditions safety net
+		time.Sleep(3 * time.Second)
+		// Stop the Reconcile
+		return ctrl.Result{}, nil
+	}
+
+	if lastStatus == "pre_installation_started" && targetStatus == "installed" {
+		logger.Info("Entering dependency install stage")
+		installedApps, err := r.GetInstalledAppNamesMap()
+		if err != nil {
+			logger.Error(err, "Failed to get all installed apps")
+			return reconcile.Result{}, err // restart reconcile
+		}
+
+		toInstall := &[]string{}
+		err = utils.GetDepthDependenciesToInstall(toInstall, appInstance.Spec.Dependencies, installedApps)
+		if err != nil {
+			logger.Error(err, "Failed to get all dependencies for app", "app", appInstance.Spec.Name)
+			return reconcile.Result{}, err // restart reconcile
+		}
+
+		for _, dependency := range *toInstall {
+			alreadyCreated := r.IsAppAlreadyCreated(dependency)
+			if alreadyCreated {
+				continue // do not install it again
+			}
+
+			dAppDependencies, err := utils.GetAppDependencies(dependency)
+			if err != nil {
+				logger.Error(err, "Failed to get dependencies for app", "app", dependency)
+				return reconcile.Result{}, err // restart reconcile
+			}
+
+			dAppPlans, err := utils.GetAppPlans(dependency)
+			if err != nil {
+				logger.Error(err, "Failed to get plans for app", "app", dependency)
+				return reconcile.Result{}, err // restart reconcile
+			}
+
+			dApp := &appv1alpha1.App{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      dependency,
+					Namespace: "default",
+				},
+				Spec: appv1alpha1.AppSpec{
+					Name:         dependency,
+					TargetStatus: "installed",
+					Dependencies: dAppDependencies,
+				},
+			}
+
+			if len(dAppPlans) > 0 {
+				dApp.Spec.Plan = utils.GetSmallestAppPlan(dAppPlans)
+			}
+
+			err = r.Create(context.Background(), dApp, &client.CreateOptions{})
+			if err != nil {
+				logger.Error(err, "Failed to create dependency", "dependency name", dependency)
+				return reconcile.Result{}, err // restart reconcile
+			}
+		}
+
+		// Refresh the App instance first so we can update it
+		err = r.Get(ctx, req.NamespacedName, appInstance)
+		if err != nil {
+			logger.Error(err, "Failed to refresh App instance")
+			// Restart the Reconcile
+			return reconcile.Result{}, err
+		}
+		status := appInstance.Status
+		status.LastStatus = "dependencies_installation_started"
+		appInstance.Status = status
+		err = r.Status().Update(ctx, appInstance)
+		if err != nil {
+			logger.Error(err, "Failed to update status")
+			return reconcile.Result{}, err // restart reconcile
+		}
+
+		// Stop reconcile
+		return ctrl.Result{}, nil
+	}
+
+	if lastStatus == "dependencies_installation_started" && targetStatus == "installed" {
+		logger.Info("Entering install stage")
+		deps := appInstance.Spec.Dependencies
+		if len(deps) > 0 {
+			for _, dep := range deps {
+				dApp := &appv1alpha1.App{}
+				err := r.Get(context.Background(), types.NamespacedName{Namespace: "default", Name: dep}, dApp)
+				if err != nil {
+					logger.Error(err, "Failed to get dependency", "name", dep)
+					return reconcile.Result{}, err // restart reconcile
+				}
+				// TODO - add apps in update status as well
+				if dApp.Status.LastStatus != "installation_finished" {
+					logger.Info("Waiting for dependency installation to complete", "app", appInstance.Spec.Name, "dependency", dep)
+					return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+				}
+			}
+		}
+
+		jobsExecuted := make(map[string]appv1alpha1.JobInfo)
+		job := newJobPod(appInstance)
+		// Set App instance as the owner of the Job
+		if err := controllerutil.SetControllerReference(appInstance, job, r.Scheme); err != nil {
+			// Restart the Reconcile
+			return reconcile.Result{}, err
 		}
 
 		// Create a Job
@@ -217,30 +333,43 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			StartedAt: &timeNow,
 		}
 		jobsExecuted[job.Name] = jobInfo
-		appInstance.Status = appv1alpha1.AppStatus{
-			LastStatus:      jobStatus,
-			LastJobExecuted: job.Name,
-			JobsExecuted:    jobsExecuted,
-			Configurations:  configs,
-		}
+
+		status := appInstance.Status
+		status.LastStatus = jobStatus
+		status.LastJobExecuted = job.Name
+		status.JobsExecuted = jobsExecuted
+		appInstance.Status = status
 		err = r.Status().Update(ctx, appInstance)
 		if err != nil {
 			logger.Error(err, "Failed to update status")
-			// Restart the Reconcile
-			return reconcile.Result{}, err
+			return reconcile.Result{}, err // restart the reconcile
 		}
 
-		// Race conditions safety net
-		time.Sleep(3 * time.Second)
-		// Stop the Reconcile
-		return ctrl.Result{}, nil
+		// Create JobWatcher for Job
+		jobwatcher := &appv1alpha1.JobWatcher{
+			ObjectMeta: metav1.ObjectMeta{
+				GenerateName: appInstance.ObjectMeta.Name + "-jw-",
+				Namespace:    "default",
+			},
+			Spec: appv1alpha1.JobWatcherSpec{
+				Namespace:  "default",
+				Frequency:  30, // check Job every 30 seconds
+				AppName:    appInstance.ObjectMeta.Name,
+				JobName:    job.Name,
+				MaxRetries: 10,
+			},
+		}
+		err = r.Create(context.Background(), jobwatcher, &client.CreateOptions{})
+		if err != nil {
+			logger.Error(err, "Failed to launch JobWatcher for app", "app", appInstance.Spec.Name)
+			return reconcile.Result{}, err // restart the reconcile
+		}
 	}
 
 	// TODO
 	// Another reconcile loop to watch the Job progress
 	// * If Job went OK, the lastStatus changed from `installation_started` to `installation_finished` and
 	// * If Job failed, the lastStatus changed from `installation_started` to `installation_failed`
-	// Both cases should change `targetStatus` to "" (empty string) in the CRD YAML file
 
 	if lastStatus == "installation_finished" && targetStatus == "updated" {
 		logger.Info("Updating app...")
@@ -256,6 +385,52 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	// Stop the Reconcile
 	return ctrl.Result{}, nil
+}
+
+// GetApps ...
+func (r *AppReconciler) GetApps() (*appv1alpha1.AppList, error) {
+	apps := &appv1alpha1.AppList{}
+	err := r.List(context.Background(), apps, &client.ListOptions{})
+	if err != nil {
+		return apps, err
+	}
+
+	return apps, nil
+}
+
+// IsAppAlreadyCreated ...
+func (r *AppReconciler) IsAppAlreadyCreated(appName string) bool {
+	apps, err := r.GetApps()
+	if err != nil {
+		return false
+	}
+
+	for _, app := range apps.Items {
+		if app.Spec.Name == appName {
+			return true
+		}
+	}
+
+	return false
+}
+
+// GetInstalledAppNamesMap ...
+func (r *AppReconciler) GetInstalledAppNamesMap() (map[string]bool, error) {
+	installedAppsMap := make(map[string]bool)
+
+	apps, err := r.GetApps()
+	if err != nil {
+		return installedAppsMap, err
+	}
+
+	for _, app := range apps.Items {
+		// TODO - add apps in update status as well
+		if app.Status.LastStatus == "installation_finished" {
+			installedAppsMap[app.Spec.Name] = true
+		}
+	}
+
+	return installedAppsMap, nil
 }
 
 // GetBizaarConfigMap will fetch "bizaar-config" ConfigMap and returns BizaarConfigMap

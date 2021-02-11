@@ -24,12 +24,10 @@ package controllers
 
 import (
 	"context"
-	"regexp"
 	"time"
 
 	"github.com/go-logr/logr"
 	kbatch "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -38,6 +36,7 @@ import (
 
 	appv1alpha1 "github.com/civo/bizaar-operator/api/v1alpha1"
 	batchv1alpha1 "github.com/civo/bizaar-operator/api/v1alpha1"
+	corev1 "k8s.io/api/core/v1"
 )
 
 // JobWatcherReconciler reconciles a JobWatcher object
@@ -47,13 +46,6 @@ type JobWatcherReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// The metadata.name of App CRD that launched this JobWatcher
-var watchFor string
-
-// +kubebuilder:rbac:groups=batch.esys.github.com,resources=jobwatchers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=batch.esys.github.com,resources=jobwatchers/status,verbs=get;update;patch
-// +kubebuilder:rbac:groups=batch.esys.github.com,resources=cronjobs,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=batch.esys.github.com,resources=cronjobs/status,verbs=get;update;patch
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=batch,resources=jobs/status,verbs=get
 
@@ -62,70 +54,47 @@ var watchFor string
 func (r *JobWatcherReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
 	log := r.Log.WithValues("JobWatcher", req.NamespacedName)
-	log.Info("JobWatcher Reconcile started...")
 
-	var watcher batchv1alpha1.JobWatcher
-	if err := r.Get(ctx, req.NamespacedName, &watcher); err != nil {
+	watcher := &batchv1alpha1.JobWatcher{}
+	if err := r.Get(ctx, req.NamespacedName, watcher); err != nil {
 		log.Error(err, "Unable to fetch JobWatcher", "Request", req)
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
-	watchFor = watcher.Spec.WatchFor
-	watcher.Status.LastStarted = metav1.Time{Time: time.Now()}
-
-	// Fetch all namespaces in the cluster
-	var namespaces corev1.NamespaceList
-	if err := r.List(ctx, &namespaces); err != nil {
-		log.Error(err, "Unable to list Namespaces")
-		return ctrl.Result{}, err
-	}
-
-	for _, ns := range namespaces.Items {
-		if err := r.processNamespace(ctx, watcher, ns); err != nil {
-			r.Log.Error(err, "Unable to process JobWatcher", "Patterns", watcher.Spec.NamespacePatterns)
+	underMaxRetries := watcher.Status.CurrentAttempt <= watcher.Spec.MaxRetries
+	if underMaxRetries && !watcher.Status.Reconciled {
+		if err := r.checkJob(ctx, watcher); err != nil {
+			log.Error(err, "Unable to process JobWatcher")
 		}
+
+		return ctrl.Result{RequeueAfter: time.Duration(watcher.Spec.Frequency) * time.Second}, nil
 	}
 
-	watcher.Status.LastFinished = metav1.Time{Time: time.Now()}
-
-	if err := r.Status().Update(ctx, &watcher); err != nil {
-		log.Error(err, "Unable to update JobWatcher status")
-		return ctrl.Result{}, err
-	}
-
-	return ctrl.Result{RequeueAfter: time.Duration(watcher.Spec.Frequency) * time.Second}, nil
+	return ctrl.Result{}, nil // stop reconcile
 }
 
-// If passed namespace matched with the namespace that we're observing, process the Jobs inside it
-func (r *JobWatcherReconciler) processNamespace(ctx context.Context, watcher batchv1alpha1.JobWatcher, ns corev1.Namespace) error {
-	log := r.Log.WithValues("JobWatcher", watcher.Namespace+"/"+watcher.Name, "Namespace", ns.Name)
-	nsPatterns := watcher.Spec.NamespacePatterns
-	match, err := matchCachedRegex(ns.Name, nsPatterns)
-	if err != nil {
-		log.Error(err, "Unable to compile spec job name as regex", "Patterns", nsPatterns)
-	}
-	if !match {
-		return nil
-	}
+func (r *JobWatcherReconciler) checkJob(ctx context.Context, watcher *batchv1alpha1.JobWatcher) error {
+	log := r.Log.WithValues("JobWatcher", watcher.Namespace+"/"+watcher.Name)
 
-	r.Log.V(1).Info("Finding jobs for namespace", "Namespace", ns.Name)
-	var jobs kbatch.JobList
-	if err := r.List(ctx, &jobs, client.InNamespace(ns.Name)); err != nil {
-		log.Error(err, "Unable to list Jobs", "Namespace", ns)
+	jobName := watcher.Spec.JobName
+	jobNamespace := watcher.Spec.Namespace
+
+	job := &kbatch.Job{}
+	err := r.Get(context.Background(), types.NamespacedName{Namespace: jobNamespace, Name: jobName}, job)
+	if err != nil {
+		log.Error(err, "Unable to get jobs", "job namespace", jobNamespace, "job name", jobName)
 		return err
 	}
 
-	for _, job := range jobs.Items {
-		for _, c := range job.Status.Conditions {
-			if c.Status == corev1.ConditionTrue {
-				if c.Type == kbatch.JobComplete {
-					// log.Info("------------------ JOB COMPLETE ------------------")
-					return r.updateJobStatus(job.Name, true, job.Namespace)
-				}
-				if c.Type == kbatch.JobFailed {
-					// log.Info("------------------- JOB FAILED -------------------")
-					return r.updateJobStatus(job.Name, false, job.Namespace)
-				}
+	for _, condition := range job.Status.Conditions {
+		if condition.Status == corev1.ConditionTrue {
+			if condition.Type == kbatch.JobComplete {
+				jobStatus := "installation_finished"
+				return r.updateAppAndWatcherStatus(jobStatus, watcher)
+			}
+			if condition.Type == kbatch.JobFailed {
+				jobStatus := "installation_failed"
+				return r.updateAppAndWatcherStatus(jobStatus, watcher)
 			}
 		}
 	}
@@ -133,68 +102,60 @@ func (r *JobWatcherReconciler) processNamespace(ctx context.Context, watcher bat
 	return nil
 }
 
-func (r *JobWatcherReconciler) updateJobStatus(jobName string, isCompleted bool, namespace string) error {
+func (r *JobWatcherReconciler) updateAppAndWatcherStatus(jobStatus string, watcher *batchv1alpha1.JobWatcher) error {
+	log := r.Log.WithValues("JobWatcher", watcher.Namespace+"/"+watcher.Name)
 	ctx := context.Background()
-	ns := types.NamespacedName{
-		Namespace: namespace,
-		Name:      watchFor,
+	log.Info("Updating app status", "status", jobStatus)
+
+	jobName := watcher.Spec.JobName
+	appNamespacedName := types.NamespacedName{
+		Name:      watcher.Spec.AppName,
+		Namespace: watcher.Spec.Namespace, // App and JobWatcher are in the same namespace
 	}
 
-	// Define Job status
-	var jobStatus string
-	if isCompleted {
-		jobStatus = "installation_finished"
-	} else {
-		jobStatus = "installation_failed"
-	}
-
-	// Fetch the App instance
-	appInstance := &appv1alpha1.App{}
-	err := r.Get(ctx, ns, appInstance)
+	// Fetch App
+	app := &appv1alpha1.App{}
+	err := r.Get(ctx, appNamespacedName, app)
 	if err != nil {
 		return err
 	}
 
 	// Update App status
 	timeNow := metav1.Now()
-	jobInfo := appInstance.Status.JobsExecuted[jobName]
+	jobInfo := app.Status.JobsExecuted[jobName]
 	jobInfo.JobStatus = jobStatus
 	jobInfo.EndedAt = &timeNow
+
 	jobsExecuted := make(map[string]appv1alpha1.JobInfo)
 	jobsExecuted[jobName] = jobInfo
-	appInstance.Status.LastStatus = jobStatus
-	appInstance.Status.JobsExecuted = jobsExecuted
-	err = r.Status().Update(ctx, appInstance)
+	app.Status.LastStatus = jobStatus
+	app.Status.JobsExecuted = jobsExecuted
+	err = r.Status().Update(ctx, app)
 	if err != nil {
 		return err
 	}
 
-	// Update App spec.targetstatus to empty string
-	appInstance.Spec.TargetStatus = ""
-	err = r.Update(ctx, appInstance)
+	// Fetch watcher
+	jw := &appv1alpha1.JobWatcher{}
+	jwNamespacedName := types.NamespacedName{
+		Namespace: watcher.ObjectMeta.Namespace,
+		Name:      watcher.ObjectMeta.Name,
+	}
+	err = r.Get(ctx, jwNamespacedName, jw)
+	if err != nil {
+		return err
+	}
+
+	// Update watcher
+	jw.Status.CurrentAttempt++
+	jw.Status.JobStatus = jobStatus
+	jw.Status.Reconciled = true
+	err = r.Status().Update(ctx, jw)
 	if err != nil {
 		return err
 	}
 
 	return nil
-}
-
-var compiledRegex = make(map[string]*regexp.Regexp)
-
-func matchCachedRegex(s string, exprs []string) (bool, error) {
-	for _, expr := range exprs {
-		if _, ok := compiledRegex[expr]; !ok {
-			regex, err := regexp.Compile(expr)
-			if err != nil {
-				return false, err
-			}
-			compiledRegex[expr] = regex
-		}
-		if compiledRegex[expr].MatchString(s) {
-			return true, nil
-		}
-	}
-	return false, nil
 }
 
 // SetupWithManager defines how the controller will watch for resources

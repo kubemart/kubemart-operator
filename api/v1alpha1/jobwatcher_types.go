@@ -28,25 +28,21 @@ type JobWatcherSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	// +kubebuilder:validation:Minimum=0
-	// Time to live in seconds for a completed job
-	CompletedTTL int64 `json:"completedTTL"`
-
-	// +kubebuilder:validation:Minimum=0
-	// Time to live in seconds for a failed job
-	FailedTTL int64 `json:"failedTTL"`
-
-	// +optional
-	// +kubebuilder:validation:MinItems=0
-	// List of namespaces to watch
-	NamespacePatterns []string `json:"namespaces,omitempty"`
+	// Namespace to watch
+	Namespace string `json:"namespace"`
 
 	// +kubebuilder:validation:Minimum=10
 	// Frequency of the TTL checks
 	Frequency int64 `json:"frequency"`
 
 	// The metadata.name of App CRD that launched this JobWatcher
-	WatchFor string `json:"watchfor"`
+	AppName string `json:"app_name"`
+
+	// Job (Bizaar Daemon) name
+	JobName string `json:"job_name"`
+
+	// +kubebuilder:validation:Minimum=10
+	MaxRetries int64 `json:"max_retries"`
 }
 
 // JobWatcherStatus defines the observed state of JobWatcher
@@ -54,12 +50,19 @@ type JobWatcherStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	LastStarted  metav1.Time `json:"lastStarted,omitempty"`
-	LastFinished metav1.Time `json:"lastFinished,omitempty"`
+	// The status of the Job that JobWatcher is watching
+	JobStatus string `json:"job_status,omitempty"`
+
+	// If we have updated App's status, Reconciled will be true
+	Reconciled bool `json:"reconciled,omitempty"`
+
+	// This will get bumped after every job check cycle
+	CurrentAttempt int64 `json:"current_attempt,omitempty"`
 }
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:shortName="jw"
 
 // JobWatcher is the Schema for the jobwatchers API
 type JobWatcher struct {

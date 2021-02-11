@@ -8,6 +8,7 @@ require (
 	github.com/dlclark/regexp2 v1.4.0
 	github.com/go-logr/logr v0.1.0
 	github.com/go-loremipsum/loremipsum v1.1.0
+	github.com/mitchellh/copystructure v1.1.1 // indirect
 	github.com/onsi/ginkgo v1.12.1
 	github.com/onsi/gomega v1.10.1
 	github.com/prometheus/common v0.4.1

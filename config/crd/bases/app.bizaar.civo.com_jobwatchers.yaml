@@ -13,6 +13,8 @@ spec:
     kind: JobWatcher
     listKind: JobWatcherList
     plural: jobwatchers
+    shortNames:
+    - jw
     singular: jobwatcher
   scope: Namespaced
   subresources:
@@ -36,45 +38,44 @@ spec:
         spec:
           description: JobWatcherSpec defines the desired state of JobWatcher
           properties:
-            completedTTL:
-              description: Time to live in seconds for a completed job
-              format: int64
-              minimum: 0
-              type: integer
-            failedTTL:
-              description: Time to live in seconds for a failed job
-              format: int64
-              minimum: 0
-              type: integer
+            app_name:
+              description: The metadata.name of App CRD that launched this JobWatcher
+              type: string
             frequency:
               description: Frequency of the TTL checks
               format: int64
               minimum: 10
               type: integer
-            namespaces:
-              description: List of namespaces to watch
-              items:
-                type: string
-              minItems: 0
-              type: array
-            watchfor:
-              description: The metadata.name of App CRD that launched this JobWatcher
+            job_name:
+              description: Job (Bizaar Daemon) name
+              type: string
+            max_retries:
+              format: int64
+              minimum: 10
+              type: integer
+            namespace:
+              description: Namespace to watch
               type: string
           required:
-          - completedTTL
-          - failedTTL
+          - app_name
           - frequency
-          - watchfor
+          - job_name
+          - max_retries
+          - namespace
           type: object
         status:
           description: JobWatcherStatus defines the observed state of JobWatcher
           properties:
-            lastFinished:
-              format: date-time
+            current_attempt:
+              description: This will get bumped after every job check cycle
+              format: int64
+              type: integer
+            job_status:
+              description: The status of the Job that JobWatcher is watching
               type: string
-            lastStarted:
-              format: date-time
-              type: string
+            reconciled:
+              description: If we have updated App's status, Reconciled will be true
+              type: boolean
           type: object
       type: object
   version: v1alpha1
