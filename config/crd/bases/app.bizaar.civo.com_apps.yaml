@@ -36,10 +36,6 @@ spec:
         spec:
           description: AppSpec defines the desired state of App
           properties:
-            dependencies:
-              items:
-                type: string
-              type: array
             name:
               type: string
             plan:

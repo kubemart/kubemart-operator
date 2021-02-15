@@ -36,10 +36,9 @@ type AppSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Name         string   `json:"name,omitempty"` // app name i.e. wordpress
-	TargetStatus string   `json:"target_status,omitempty"`
-	Dependencies []string `json:"dependencies,omitempty"`
-	Plan         int      `json:"plan,omitempty"`
+	Name         string `json:"name,omitempty"` // app name i.e. wordpress
+	TargetStatus string `json:"target_status,omitempty"`
+	Plan         int    `json:"plan,omitempty"`
 }
 
 // JobInfo contains information about each Job we launched under an App

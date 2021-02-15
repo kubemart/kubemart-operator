@@ -5,5 +5,5 @@ metadata:
   namespace: default # where to place the App CR # TODO - run in different namespace?
 spec:
   name: mariadb
-  plan: 5
   target_status: installed
+  plan: 5

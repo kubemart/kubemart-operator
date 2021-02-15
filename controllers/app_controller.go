@@ -41,6 +41,11 @@ import (
 // +kubebuilder:rbac:groups=app.bizaar.civo.com,resources=apps,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=app.bizaar.civo.com,resources=apps/status,verbs=get;update;patch
 
+const (
+	// waiting period between "did all app's dependencies have been installed" checks
+	pollIntervalSeconds = 30
+)
+
 // AppReconciler reconciles a App object
 type AppReconciler struct {
 	client.Client
@@ -69,11 +74,10 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		if errors.IsNotFound(err) {
 			// Request object not found, could have been deleted after reconcile request.
 			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
-			// Stop the Reconcile
-			return reconcile.Result{}, nil
+			return reconcile.Result{}, nil // stop reconcile
 		}
-		// Error reading the object. Restart the Reconcile.
-		return reconcile.Result{}, err
+		// Error reading the object
+		return reconcile.Result{}, err // restart reconcile
 	}
 
 	lastStatus := appInstance.Status.LastStatus
@@ -201,10 +205,8 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			return reconcile.Result{}, err // restart reconcile
 		}
 
-		// Race conditions safety net
+		// Race conditions safety net (maybe we can delete this)
 		time.Sleep(3 * time.Second)
-		// Stop the Reconcile
-		return ctrl.Result{}, nil
 	}
 
 	if lastStatus == "pre_installation_started" && targetStatus == "installed" {
@@ -215,50 +217,49 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			return reconcile.Result{}, err // restart reconcile
 		}
 
-		toInstall := &[]string{}
-		err = utils.GetDepthDependenciesToInstall(toInstall, appInstance.Spec.Dependencies, installedApps)
+		directDependencies, err := utils.GetAppDependencies(appInstance.Spec.Name)
 		if err != nil {
 			logger.Error(err, "Failed to get all dependencies for app", "app", appInstance.Spec.Name)
 			return reconcile.Result{}, err // restart reconcile
 		}
 
-		for _, dependency := range *toInstall {
-			alreadyCreated := r.IsAppAlreadyCreated(dependency)
+		depthDependencies := &[]string{}
+		err = utils.GetDepthDependenciesToInstall(depthDependencies, directDependencies, installedApps)
+		if err != nil {
+			logger.Error(err, "Failed to get depth dependencies for app", "app", appInstance.Spec.Name)
+			return reconcile.Result{}, err // restart reconcile
+		}
+
+		for _, depthDependency := range *depthDependencies {
+			alreadyCreated := r.IsAppAlreadyCreated(depthDependency)
 			if alreadyCreated {
 				continue // do not install it again
 			}
 
-			dAppDependencies, err := utils.GetAppDependencies(dependency)
+			depthDependencyPlans, err := utils.GetAppPlans(depthDependency)
 			if err != nil {
-				logger.Error(err, "Failed to get dependencies for app", "app", dependency)
-				return reconcile.Result{}, err // restart reconcile
-			}
-
-			dAppPlans, err := utils.GetAppPlans(dependency)
-			if err != nil {
-				logger.Error(err, "Failed to get plans for app", "app", dependency)
+				logger.Error(err, "Failed to get plans for app", "app", depthDependency)
 				return reconcile.Result{}, err // restart reconcile
 			}
 
 			dApp := &appv1alpha1.App{
 				ObjectMeta: metav1.ObjectMeta{
-					Name:      dependency,
+					Name:      depthDependency,
 					Namespace: "default",
 				},
 				Spec: appv1alpha1.AppSpec{
-					Name:         dependency,
+					Name:         depthDependency,
 					TargetStatus: "installed",
-					Dependencies: dAppDependencies,
 				},
 			}
 
-			if len(dAppPlans) > 0 {
-				dApp.Spec.Plan = utils.GetSmallestAppPlan(dAppPlans)
+			if len(depthDependencyPlans) > 0 {
+				dApp.Spec.Plan = utils.GetSmallestAppPlan(depthDependencyPlans)
 			}
 
 			err = r.Create(context.Background(), dApp, &client.CreateOptions{})
 			if err != nil {
-				logger.Error(err, "Failed to create dependency", "dependency name", dependency)
+				logger.Error(err, "Failed to create dependency", "dependency name", depthDependency)
 				return reconcile.Result{}, err // restart reconcile
 			}
 		}
@@ -279,25 +280,29 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			return reconcile.Result{}, err // restart reconcile
 		}
 
-		// Stop reconcile
-		return ctrl.Result{}, nil
 	}
 
 	if lastStatus == "dependencies_installation_started" && targetStatus == "installed" {
 		logger.Info("Entering install stage")
-		deps := appInstance.Spec.Dependencies
-		if len(deps) > 0 {
-			for _, dep := range deps {
+
+		dependencies, err := utils.GetAppDependencies(appInstance.Spec.Name)
+		if err != nil {
+			logger.Error(err, "Failed to get all dependencies for app", "app", appInstance.Spec.Name)
+			return reconcile.Result{}, err // restart reconcile
+		}
+
+		if len(dependencies) > 0 {
+			for _, dependency := range dependencies {
 				dApp := &appv1alpha1.App{}
-				err := r.Get(context.Background(), types.NamespacedName{Namespace: "default", Name: dep}, dApp)
+				err := r.Get(context.Background(), types.NamespacedName{Namespace: "default", Name: dependency}, dApp)
 				if err != nil {
-					logger.Error(err, "Failed to get dependency", "name", dep)
+					logger.Error(err, "Failed to get dependency", "name", dependency)
 					return reconcile.Result{}, err // restart reconcile
 				}
 				// TODO - add apps in update status as well
 				if dApp.Status.LastStatus != "installation_finished" {
-					logger.Info("Waiting for dependency installation to complete", "app", appInstance.Spec.Name, "dependency", dep)
-					return ctrl.Result{RequeueAfter: 10 * time.Second}, nil
+					logger.Info("Waiting for dependency installation to complete", "app", appInstance.Spec.Name, "dependency", dependency)
+					return ctrl.Result{RequeueAfter: pollIntervalSeconds * time.Second}, nil
 				}
 			}
 		}
@@ -372,19 +377,14 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// * If Job failed, the lastStatus changed from `installation_started` to `installation_failed`
 
 	if lastStatus == "installation_finished" && targetStatus == "updated" {
-		logger.Info("Updating app...")
-		// Stop the Reconcile
-		return ctrl.Result{}, nil
+		logger.Info("Entering update stage")
 	}
 
 	if lastStatus == "installation_finished" && targetStatus == "deleted" {
-		logger.Info("Deleting app...")
-		// Stop the Reconcile
-		return ctrl.Result{}, nil
+		logger.Info("Entering delete stage")
 	}
 
-	// Stop the Reconcile
-	return ctrl.Result{}, nil
+	return ctrl.Result{}, nil // stop reconcile
 }
 
 // GetApps ...
