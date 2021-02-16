@@ -1,3 +1,8 @@
+# Note:
+# As of 16 Feb 2021, this script isn't working properly and we need fix this
+# so we can have a Go client -- which can be used in the Bizaar CLI project.
+# Otherwise, Bizaar CLI needs to use REST API to CRUD the App CR.
+# ---
 # https://github.com/slok/kube-code-generator#kubernetes-type-code-generation
 # https://github.com/operator-framework/operator-sdk/issues/1975#issuecomment-606903277
 
