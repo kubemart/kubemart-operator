@@ -43,8 +43,14 @@ import (
 
 const (
 	// waiting period between "did all app's dependencies have been installed" checks
-	pollIntervalSeconds = 30
+	pollIntervalSeconds       = 30
+	updateWatcherSleepMinutes = 30
 )
+
+// Used to tell us if we have deployed update watcher for a given app.
+// If the second return value from this map returns true,
+// that means update watcher has been deployed.
+var updateWatcher = make(map[string]bool)
 
 // AppReconciler reconciles a App object
 type AppReconciler struct {
@@ -421,21 +427,76 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	if lastStatus == "installation_finished" || lastStatus == "update_finished" {
-		version, err := utils.GetAppVersion(appInstance.ObjectMeta.Name)
-		if err != nil {
-			logger.Error(err, "Unable to get app's version")
-			return reconcile.Result{}, nil // stop reconcile
+		appName := appInstance.ObjectMeta.Name
+
+		if appInstance.Status.InstalledVersion == "" {
+			version, err := utils.GetAppVersion(appName)
+			if err != nil {
+				logger.Error(err, "Unable to get app's version")
+				return reconcile.Result{}, nil // stop reconcile
+			}
+
+			appInstance.Status.InstalledVersion = version
+			err = r.Status().Update(ctx, appInstance)
+			if err != nil {
+				logger.Error(err, "Failed to update status")
+				return reconcile.Result{}, err // restart reconcile
+			}
 		}
 
-		appInstance.Status.InstalledVersion = version
-		err = r.Status().Update(ctx, appInstance)
-		if err != nil {
-			logger.Error(err, "Failed to update status")
-			return reconcile.Result{}, err // restart reconcile
+		_, updateWatcherExists := updateWatcher[appName]
+		if !updateWatcherExists {
+			go r.WatchForNewUpdate(appInstance)
+			updateWatcher[appName] = true
 		}
 	}
 
 	return ctrl.Result{}, nil // stop reconcile
+}
+
+// WatchForNewUpdate ...
+func (r *AppReconciler) WatchForNewUpdate(app *appv1alpha1.App) {
+	logger := r.Log
+	appName := app.ObjectMeta.Name
+	installedVersion := app.Status.InstalledVersion
+	logger.Info("Adding an update watcher for app", "app", appName)
+
+	for {
+		logger.Info("Checking for new update", "app", appName)
+		versionFromManifest, err := utils.GetAppVersion(appName)
+		if err != nil {
+			logger.Error(err, "Unable to get app's version")
+			continue // try again in next cycle
+		}
+
+		if installedVersion != versionFromManifest {
+			logger.Info("New update available", "app", appName)
+
+			// refresh app instance
+			err = r.Get(context.Background(), types.NamespacedName{
+				Namespace: app.ObjectMeta.Namespace,
+				Name:      app.ObjectMeta.Name,
+			}, app)
+			if err != nil {
+				logger.Error(err, "Unable to refresh app instance")
+				continue // try again in next cycle
+			}
+
+			app.Status.NewUpdateAvailable = true
+			app.Status.NewUpdateVersion = versionFromManifest
+			err = r.Status().Update(context.Background(), app, &client.UpdateOptions{})
+			if err != nil {
+				logger.Error(err, "Unable to update app status (new version available)")
+				continue // try again in next cycle
+			}
+		} else {
+			logger.Info("Installed app is latest", "app", appName)
+		}
+
+		// important to have this sleep, because this function will run forever
+		// in background as Go routine
+		time.Sleep(updateWatcherSleepMinutes * time.Minute)
+	}
 }
 
 // ProcessAppNamespaceDeletion ...

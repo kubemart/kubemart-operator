@@ -56,11 +56,13 @@ type AppStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	InstalledVersion string             `json:"installed_version"`
-	LastStatus       string             `json:"last_status"`
-	LastJobExecuted  string             `json:"last_job_executed"`
-	JobsExecuted     map[string]JobInfo `json:"jobs_executed"`
-	Configurations   []Configuration    `json:"configurations,omitempty"`
+	InstalledVersion   string             `json:"installed_version"`
+	LastStatus         string             `json:"last_status"`
+	LastJobExecuted    string             `json:"last_job_executed"`
+	JobsExecuted       map[string]JobInfo `json:"jobs_executed"`
+	Configurations     []Configuration    `json:"configurations,omitempty"`
+	NewUpdateAvailable bool               `json:"new_update_available"`
+	NewUpdateVersion   string             `json:"new_update_version"`
 }
 
 // +kubebuilder:object:root=true

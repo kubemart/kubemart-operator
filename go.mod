@@ -21,5 +21,4 @@ require (
 	sigs.k8s.io/controller-runtime v0.6.3
 )
 
-// TODO - remove this
-replace github.com/civo/bizaar-operator/pkg/utils => /Users/zulh/civo/bizaar-operator/pkg/utils
+// replace github.com/civo/bizaar-operator/pkg/utils => /Users/zulh/civo/bizaar-operator/pkg/utils
