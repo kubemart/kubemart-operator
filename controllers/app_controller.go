@@ -603,17 +603,17 @@ func (r *AppReconciler) DeleteNamespace(namespace string) error {
 
 // newJobPod is the pod definition that contains helm, kubectl, curl, git & Civo marketplace code
 func newJobPod(cr *appv1alpha1.App) *batchv1.Job {
-	// labels := map[string]string{
-	// 	"bizaar-app-name":   cr.Spec.Name,
-	// 	"bizaar-job-status": "RUNNING",
-	// }
+	// auto delete the Job (and its Pod) 24 hours after it finishes
+	// https://kubernetes.io/docs/concepts/workloads/controllers/job/#ttl-mechanism-for-finished-jobs
+	secondsInADay := int32(86400)
+
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
 			GenerateName: cr.Name + "-job-", // Job name example: app-sample-job-jzxbw
 			Namespace:    cr.Namespace,
-			// Labels:       labels,
 		},
 		Spec: batchv1.JobSpec{
+			TTLSecondsAfterFinished: &secondsInADay,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
 					ServiceAccountName: "bizaar-daemon-svc-acc",
