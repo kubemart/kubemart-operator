@@ -420,6 +420,21 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		logger.Info("Entering update stage")
 	}
 
+	if lastStatus == "installation_finished" || lastStatus == "update_finished" {
+		version, err := utils.GetAppVersion(appInstance.ObjectMeta.Name)
+		if err != nil {
+			logger.Error(err, "Unable to get app's version")
+			return reconcile.Result{}, nil // stop reconcile
+		}
+
+		appInstance.Status.InstalledVersion = version
+		err = r.Status().Update(ctx, appInstance)
+		if err != nil {
+			logger.Error(err, "Failed to update status")
+			return reconcile.Result{}, err // restart reconcile
+		}
+	}
+
 	return ctrl.Result{}, nil // stop reconcile
 }
 

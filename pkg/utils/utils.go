@@ -27,6 +27,7 @@ const (
 
 // AppManifest is the original structure of app's manifest.yaml file
 type AppManifest struct {
+	Version      string   `yaml:"version"`
 	Namespace    string   `yaml:"namespace"`
 	Dependencies []string `yaml:"dependencies"`
 	Plans        []struct {
@@ -70,6 +71,21 @@ func GetAppManifest(appName string) (*AppManifest, error) {
 	}
 
 	return manifest, nil
+}
+
+// GetAppVersion ...
+func GetAppVersion(appName string) (string, error) {
+	manifest, err := GetAppManifest(appName)
+	if err != nil {
+		return "", err
+	}
+
+	version := manifest.Version
+	if version == "" {
+		return "", fmt.Errorf("Version is empty")
+	}
+
+	return version, nil
 }
 
 // GetAppConfigurations ...
