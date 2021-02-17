@@ -65,6 +65,7 @@ type AppStatus struct {
 
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
+// +kubebuilder:resource:shortName="app"
 // +genclient
 
 // App is the Schema for the apps API

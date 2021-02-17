@@ -4,21 +4,21 @@ kind: ClusterRole
 metadata:
   name: jobwatcher-editor-role
 rules:
-- apiGroups:
-  - app.bizaar.civo.com
-  resources:
-  - jobwatchers
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - app.bizaar.civo.com
-  resources:
-  - jobwatchers/status
-  verbs:
-  - get
+  - apiGroups:
+      - bizaar.civo.com
+    resources:
+      - jobwatchers
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - bizaar.civo.com
+    resources:
+      - jobwatchers/status
+    verbs:
+      - get

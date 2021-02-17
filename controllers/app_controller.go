@@ -38,8 +38,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 )
 
-// +kubebuilder:rbac:groups=app.bizaar.civo.com,resources=apps,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=app.bizaar.civo.com,resources=apps/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=bizaar.civo.com,resources=apps,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=bizaar.civo.com,resources=apps/status,verbs=get;update;patch
 
 const (
 	// waiting period between "did all app's dependencies have been installed" checks

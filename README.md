@@ -1,7 +1,7 @@
 CR manifest should look like:
 
 ```yaml
-apiVersion: app.bizaar.civo.com/v1alpha1
+apiVersion: bizaar.civo.com/v1alpha1
 kind: App
 metadata:
   name: kubenav

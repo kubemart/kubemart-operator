@@ -1,12 +1,12 @@
-domain: bizaar.civo.com
+domain: civo.com
 layout: go.kubebuilder.io/v2
 projectName: bizaar-operator
 repo: github.com/civo/bizaar-operator
 resources:
-- group: app
+- group: bizaar
   kind: App
   version: v1alpha1
-- group: app
+- group: bizaar
   kind: JobWatcher
   version: v1alpha1
 version: 3-alpha

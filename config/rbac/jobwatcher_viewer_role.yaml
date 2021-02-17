@@ -4,17 +4,17 @@ kind: ClusterRole
 metadata:
   name: jobwatcher-viewer-role
 rules:
-- apiGroups:
-  - app.bizaar.civo.com
-  resources:
-  - jobwatchers
-  verbs:
-  - get
-  - list
-  - watch
-- apiGroups:
-  - app.bizaar.civo.com
-  resources:
-  - jobwatchers/status
-  verbs:
-  - get
+  - apiGroups:
+      - bizaar.civo.com
+    resources:
+      - jobwatchers
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - bizaar.civo.com
+    resources:
+      - jobwatchers/status
+    verbs:
+      - get

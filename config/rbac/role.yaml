@@ -7,26 +7,6 @@ metadata:
   name: manager-role
 rules:
 - apiGroups:
-  - app.bizaar.civo.com
-  resources:
-  - apps
-  verbs:
-  - create
-  - delete
-  - get
-  - list
-  - patch
-  - update
-  - watch
-- apiGroups:
-  - app.bizaar.civo.com
-  resources:
-  - apps/status
-  verbs:
-  - get
-  - patch
-  - update
-- apiGroups:
   - batch
   resources:
   - jobs
@@ -44,3 +24,23 @@ rules:
   - jobs/status
   verbs:
   - get
+- apiGroups:
+  - bizaar.civo.com
+  resources:
+  - apps
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
+- apiGroups:
+  - bizaar.civo.com
+  resources:
+  - apps/status
+  verbs:
+  - get
+  - patch
+  - update

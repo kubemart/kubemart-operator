@@ -6,9 +6,9 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.3.0
   creationTimestamp: null
-  name: jobwatchers.app.bizaar.civo.com
+  name: jobwatchers.bizaar.civo.com
 spec:
-  group: app.bizaar.civo.com
+  group: bizaar.civo.com
   names:
     kind: JobWatcher
     listKind: JobWatcherList
