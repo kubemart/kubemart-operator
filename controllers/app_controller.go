@@ -81,10 +81,43 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	lastStatus := appInstance.Status.LastStatus
-	targetStatus := appInstance.Spec.TargetStatus
+	action := appInstance.Spec.Action
+
+	finalizerName := "finalizers.bizaar.civo.com"
+	if appInstance.ObjectMeta.DeletionTimestamp.IsZero() {
+		// The object is not being deleted, so if it does not have our finalizer,
+		// then lets add the finalizer and update the object
+		if !utils.ContainsString(appInstance.ObjectMeta.Finalizers, finalizerName) {
+			appInstance.ObjectMeta.Finalizers = append(appInstance.ObjectMeta.Finalizers, finalizerName)
+			err := r.Update(context.Background(), appInstance)
+			if err != nil {
+				return reconcile.Result{}, err // restart reconcile
+			}
+		}
+	} else {
+		// The object is being deleted
+		if utils.ContainsString(appInstance.ObjectMeta.Finalizers, finalizerName) {
+			// our finalizer is present, so lets delete the app's namespace
+			err := r.ProcessAppNamespaceDeletion(appInstance)
+			if err != nil {
+				// if fail to delete the namespace, return with error so that it can be retried
+				return reconcile.Result{}, err // restart reconcile
+			}
+
+			// remove finalizer from the App
+			appInstance.ObjectMeta.Finalizers = utils.RemoveString(appInstance.ObjectMeta.Finalizers, finalizerName)
+			err = r.Update(context.Background(), appInstance)
+			if err != nil {
+				return reconcile.Result{}, err // restart reconcile
+			}
+		}
+
+		// Stop reconciliation as the item is being deleted and does not have finalizer
+		return ctrl.Result{}, nil
+	}
 
 	// For `bizaar install <app_name>`
-	if lastStatus == "" && targetStatus == "installed" {
+	if lastStatus == "" && action == "install" {
 		logger.Info("Entering pre-install stage")
 		jobsExecuted := make(map[string]appv1alpha1.JobInfo)
 
@@ -209,7 +242,7 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		time.Sleep(3 * time.Second)
 	}
 
-	if lastStatus == "pre_installation_started" && targetStatus == "installed" {
+	if lastStatus == "pre_installation_started" && action == "install" {
 		logger.Info("Entering dependency install stage")
 		installedApps, err := r.GetInstalledAppNamesMap()
 		if err != nil {
@@ -248,8 +281,8 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 					Namespace: "default",
 				},
 				Spec: appv1alpha1.AppSpec{
-					Name:         depthDependency,
-					TargetStatus: "installed",
+					Name:   depthDependency,
+					Action: "install",
 				},
 			}
 
@@ -282,7 +315,7 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	}
 
-	if lastStatus == "dependencies_installation_started" && targetStatus == "installed" {
+	if lastStatus == "dependencies_installation_started" && action == "install" {
 		logger.Info("Entering install stage")
 
 		dependencies, err := utils.GetAppDependencies(appInstance.Spec.Name)
@@ -364,6 +397,13 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				MaxRetries: 10,
 			},
 		}
+
+		// Set App as the owner of the JobWatcher
+		err = controllerutil.SetControllerReference(appInstance, jobwatcher, r.Scheme)
+		if err != nil {
+			return reconcile.Result{}, err // restart the reconcile
+		}
+
 		err = r.Create(context.Background(), jobwatcher, &client.CreateOptions{})
 		if err != nil {
 			logger.Error(err, "Failed to launch JobWatcher for app", "app", appInstance.Spec.Name)
@@ -376,15 +416,84 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// * If Job went OK, the lastStatus changed from `installation_started` to `installation_finished` and
 	// * If Job failed, the lastStatus changed from `installation_started` to `installation_failed`
 
-	if lastStatus == "installation_finished" && targetStatus == "updated" {
+	if lastStatus == "installation_finished" && action == "update" {
 		logger.Info("Entering update stage")
 	}
 
-	if lastStatus == "installation_finished" && targetStatus == "deleted" {
-		logger.Info("Entering delete stage")
+	return ctrl.Result{}, nil // stop reconcile
+}
+
+// ProcessAppNamespaceDeletion ...
+func (r *AppReconciler) ProcessAppNamespaceDeletion(app *appv1alpha1.App) error {
+	appName := app.ObjectMeta.Name
+	logger := r.Log.WithValues("app", appName)
+
+	logger.Info("Processing app's namespace deletion...")
+	namespace, err := utils.GetNamespaceFromAppManifest(appName)
+	if err != nil {
+		logger.Error(err, "Unable to determine app namespace from app's manifest.yaml file")
+		// stop here so the caller can continue with removing finalizer from Custom Resource
+		return nil
 	}
 
-	return ctrl.Result{}, nil // stop reconcile
+	if namespace == "" {
+		logger.Info("Unable to uninstall this app because it does not have namespace declared in its manifest.yaml file")
+		// stop here so the caller can continue with removing finalizer from Custom Resource
+		return nil
+	}
+
+	namespaceExists, err := r.IsNamespaceExist(namespace)
+	if err != nil {
+		logger.Error(err, "Unable to check namespace")
+		return err
+	}
+
+	if namespaceExists {
+		logger.Info("Deleting namespace", "namespace", namespace)
+		err = r.DeleteNamespace(namespace)
+		if err != nil {
+			logger.Error(err, "Unable to delete namespace")
+			return err
+		}
+	}
+
+	logger.Info("Waiting for namespace deletion to finish...", "namespace", namespace)
+	var sleepDuration time.Duration = 5 // seconds
+	var maxTries int = 60
+	var tries int = 0
+	var clearNamespaceFinalizer bool = false
+
+	for {
+		if tries > maxTries {
+			clearNamespaceFinalizer = true
+			break
+		}
+
+		nsExists, err := r.IsNamespaceExist(namespace)
+		if err != nil {
+			logger.Error(err, "Unable to check namespace")
+			return err
+		}
+
+		if !nsExists {
+			break
+		}
+
+		time.Sleep(sleepDuration * time.Second)
+		tries++
+	}
+
+	if clearNamespaceFinalizer {
+		logger.Info("Clearing namespace finalizer...")
+		app.ObjectMeta.Finalizers = []string{}
+		err := r.Update(context.Background(), app, &client.UpdateOptions{})
+		if err != nil {
+			logger.Error(err, "Unable to clear namespace finalizers", "namespace", namespace)
+			return err
+		}
+	}
+
+	return nil
 }
 
 // GetApps ...
@@ -451,6 +560,45 @@ func (r *AppReconciler) GetBizaarConfigMap() (*BizaarConfigMap, error) {
 	bcm.ClusterName = data["cluster_name"]
 	bcm.MasterIP = data["master_ip"]
 	return bcm, nil
+}
+
+// IsNamespaceExist ...
+func (r *AppReconciler) IsNamespaceExist(namespace string) (bool, error) {
+	ns := &v1.Namespace{}
+	err := r.Client.Get(context.Background(), types.NamespacedName{
+		Name: namespace,
+	}, ns)
+
+	if err != nil {
+		if errors.IsNotFound(err) {
+			return false, nil
+		}
+
+		return false, err
+	}
+
+	return true, nil
+}
+
+// GetNamespace ...
+func (r *AppReconciler) GetNamespace(namespace string) (*v1.Namespace, error) {
+	ns := &v1.Namespace{}
+	err := r.Client.Get(context.Background(), types.NamespacedName{
+		Name: namespace,
+	}, ns)
+
+	if err != nil {
+		return ns, err
+	}
+
+	return ns, nil
+}
+
+// DeleteNamespace ...
+func (r *AppReconciler) DeleteNamespace(namespace string) error {
+	ns, _ := r.GetNamespace(namespace)
+	err := r.Client.Delete(context.Background(), ns, &client.DeleteOptions{})
+	return err
 }
 
 // newJobPod is the pod definition that contains helm, kubectl, curl, git & Civo marketplace code

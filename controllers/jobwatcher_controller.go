@@ -28,11 +28,13 @@ import (
 
 	"github.com/go-logr/logr"
 	kbatch "k8s.io/api/batch/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	appv1alpha1 "github.com/civo/bizaar-operator/api/v1alpha1"
 	batchv1alpha1 "github.com/civo/bizaar-operator/api/v1alpha1"
@@ -56,9 +58,15 @@ func (r *JobWatcherReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	log := r.Log.WithValues("JobWatcher", req.NamespacedName)
 
 	watcher := &batchv1alpha1.JobWatcher{}
-	if err := r.Get(ctx, req.NamespacedName, watcher); err != nil {
-		log.Error(err, "Unable to fetch JobWatcher", "Request", req)
-		return ctrl.Result{}, client.IgnoreNotFound(err)
+	err := r.Get(ctx, req.NamespacedName, watcher)
+	if err != nil {
+		if errors.IsNotFound(err) {
+			// Request object not found, could have been deleted after reconcile request.
+			// Owned objects are automatically garbage collected. For additional cleanup logic use finalizers.
+			return reconcile.Result{}, nil // stop reconcile
+		}
+		// Error reading the object
+		return reconcile.Result{}, err // restart reconcile
 	}
 
 	underMaxRetries := watcher.Status.CurrentAttempt <= watcher.Spec.MaxRetries

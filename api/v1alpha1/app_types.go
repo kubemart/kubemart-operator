@@ -23,22 +23,14 @@ import (
 // EDIT THIS FILE!  THIS IS SCAFFOLDING FOR YOU TO OWN!
 // NOTE: json tags are required.  Any new fields you add must have json tags for the fields to be serialized.
 
-// Configuration defines the app's configuration.
-// For example, "mariadb" app will have "MYSQL_ROOT_PASSWORD" configuration.
-type Configuration struct {
-	Key           string `json:"key,omitempty"`
-	Value         string `json:"value,omitempty"`
-	ValueIsBase64 bool   `json:"value_is_base64,omitempty"`
-}
-
 // AppSpec defines the desired state of App
 type AppSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Name         string `json:"name,omitempty"` // app name i.e. wordpress
-	TargetStatus string `json:"target_status,omitempty"`
-	Plan         int    `json:"plan,omitempty"`
+	Name   string `json:"name,omitempty"` // app name i.e. wordpress
+	Action string `json:"action,omitempty"`
+	Plan   int    `json:"plan,omitempty"`
 }
 
 // JobInfo contains information about each Job we launched under an App
@@ -51,15 +43,24 @@ type JobInfo struct {
 	EndedAt   *metav1.Time `json:"ended_at,omitempty"`
 }
 
+// Configuration defines the app's configuration.
+// For example, "mariadb" app will have "MYSQL_ROOT_PASSWORD" configuration.
+type Configuration struct {
+	Key           string `json:"key,omitempty"`
+	Value         string `json:"value,omitempty"`
+	ValueIsBase64 bool   `json:"value_is_base64,omitempty"`
+}
+
 // AppStatus defines the observed state of App
 type AppStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	LastStatus      string             `json:"last_status"`
-	LastJobExecuted string             `json:"last_job_executed"`
-	JobsExecuted    map[string]JobInfo `json:"jobs_executed"`
-	Configurations  []Configuration    `json:"configurations,omitempty"`
+	InstalledVersion string             `json:"installed_version"`
+	LastStatus       string             `json:"last_status"`
+	LastJobExecuted  string             `json:"last_job_executed"`
+	JobsExecuted     map[string]JobInfo `json:"jobs_executed"`
+	Configurations   []Configuration    `json:"configurations,omitempty"`
 }
 
 // +kubebuilder:object:root=true

@@ -36,12 +36,12 @@ spec:
         spec:
           description: AppSpec defines the desired state of App
           properties:
+            action:
+              type: string
             name:
               type: string
             plan:
               type: integer
-            target_status:
-              type: string
           type: object
         status:
           description: AppStatus defines the observed state of App
@@ -59,6 +59,8 @@ spec:
                     type: boolean
                 type: object
               type: array
+            installed_version:
+              type: string
             jobs_executed:
               additionalProperties:
                 description: JobInfo contains information about each Job we launched
@@ -83,6 +85,7 @@ spec:
             last_status:
               type: string
           required:
+          - installed_version
           - jobs_executed
           - last_job_executed
           - last_status

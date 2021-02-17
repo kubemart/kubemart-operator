@@ -1,8 +1,8 @@
 apiVersion: app.bizaar.civo.com/v1alpha1
 kind: App
 metadata:
-  name: kubenav
+  name: rabbitmq
   namespace: default # where to place the App CR # TODO - run in different namespace?
 spec:
-  name: kubenav
-  target_status: installed
+  name: rabbitmq
+  action: install

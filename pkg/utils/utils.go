@@ -27,6 +27,7 @@ const (
 
 // AppManifest is the original structure of app's manifest.yaml file
 type AppManifest struct {
+	Namespace    string   `yaml:"namespace"`
 	Dependencies []string `yaml:"dependencies"`
 	Plans        []struct {
 		Label         string `yaml:"label"`
@@ -324,4 +325,36 @@ func GetAppPlans(appName string) ([]int, error) {
 // GetSmallestAppPlan take plans slice e.g. [20,5,10] and return 5 (int)
 func GetSmallestAppPlan(sortedPlans []int) int {
 	return sortedPlans[0]
+}
+
+// GetNamespaceFromAppManifest ...
+func GetNamespaceFromAppManifest(appName string) (string, error) {
+	manifest, err := GetAppManifest(appName)
+	if err != nil {
+		return "", err
+	}
+
+	ns := manifest.Namespace
+	return ns, nil
+}
+
+// ContainsString ...
+func ContainsString(slice []string, s string) bool {
+	for _, item := range slice {
+		if item == s {
+			return true
+		}
+	}
+	return false
+}
+
+// RemoveString ...
+func RemoveString(slice []string, s string) (result []string) {
+	for _, item := range slice {
+		if item == s {
+			continue
+		}
+		result = append(result, item)
+	}
+	return
 }
