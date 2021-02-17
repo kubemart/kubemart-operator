@@ -90,13 +90,6 @@ spec:
               type: boolean
             new_update_version:
               type: string
-          required:
-          - installed_version
-          - jobs_executed
-          - last_job_executed
-          - last_status
-          - new_update_available
-          - new_update_version
           type: object
       type: object
   version: v1alpha1

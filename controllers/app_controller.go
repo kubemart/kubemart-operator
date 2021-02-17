@@ -19,6 +19,7 @@ package controllers
 import (
 	"context"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -102,6 +103,12 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 	} else {
 		// The object is being deleted
+		// let's first clear the updateWatcher
+		err := r.DeleteUpdateWatcher(appInstance)
+		if err != nil {
+			return reconcile.Result{}, err // restart reconcile
+		}
+
 		if utils.ContainsString(appInstance.ObjectMeta.Finalizers, finalizerName) {
 			// our finalizer is present, so lets delete the app's namespace
 			err := r.ProcessAppNamespaceDeletion(appInstance)
@@ -397,10 +404,10 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			},
 			Spec: appv1alpha1.JobWatcherSpec{
 				Namespace:  "default",
-				Frequency:  30, // check Job every 30 seconds
+				Frequency:  10, // check Job every 10 seconds
 				AppName:    appInstance.ObjectMeta.Name,
 				JobName:    job.Name,
-				MaxRetries: 10,
+				MaxRetries: 30,
 			},
 		}
 
@@ -458,7 +465,6 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 func (r *AppReconciler) WatchForNewUpdate(app *appv1alpha1.App) {
 	logger := r.Log
 	appName := app.ObjectMeta.Name
-	installedVersion := app.Status.InstalledVersion
 	logger.Info("Adding an update watcher for app", "app", appName)
 
 	for {
@@ -469,34 +475,60 @@ func (r *AppReconciler) WatchForNewUpdate(app *appv1alpha1.App) {
 			continue // try again in next cycle
 		}
 
+		// refresh app instance
+		err = r.Get(context.Background(), types.NamespacedName{
+			Namespace: app.ObjectMeta.Namespace,
+			Name:      app.ObjectMeta.Name,
+		}, app)
+		if err != nil {
+			logger.Error(err, "Unable to refresh app instance")
+			continue // try again in next cycle
+		}
+
+		installedVersion := app.Status.InstalledVersion
 		if installedVersion != versionFromManifest {
-			logger.Info("New update available", "app", appName)
-
-			// refresh app instance
-			err = r.Get(context.Background(), types.NamespacedName{
-				Namespace: app.ObjectMeta.Namespace,
-				Name:      app.ObjectMeta.Name,
-			}, app)
-			if err != nil {
-				logger.Error(err, "Unable to refresh app instance")
-				continue // try again in next cycle
-			}
-
+			logger.Info("New update available", "app", appName, "installed", installedVersion, "available", versionFromManifest)
 			app.Status.NewUpdateAvailable = true
 			app.Status.NewUpdateVersion = versionFromManifest
-			err = r.Status().Update(context.Background(), app, &client.UpdateOptions{})
-			if err != nil {
-				logger.Error(err, "Unable to update app status (new version available)")
-				continue // try again in next cycle
-			}
 		} else {
 			logger.Info("Installed app is latest", "app", appName)
+			app.Status.NewUpdateAvailable = false
+			app.Status.NewUpdateVersion = ""
+		}
+
+		err = r.Status().Update(context.Background(), app, &client.UpdateOptions{})
+		if err != nil {
+			logger.Error(err, "Unable to update app status (new version available)")
+			continue // try again in next cycle
 		}
 
 		// important to have this sleep, because this function will run forever
 		// in background as Go routine
 		time.Sleep(updateWatcherSleepMinutes * time.Minute)
 	}
+}
+
+// DeleteUpdateWatcher ...
+func (r *AppReconciler) DeleteUpdateWatcher(app *appv1alpha1.App) error {
+	logger := r.Log
+	appName := app.ObjectMeta.Name
+	logger.Info("Deleting update watcher", "app", appName)
+
+	_, exists := updateWatcher[appName]
+	if exists {
+		delete(updateWatcher, appName)
+	}
+
+	keys := reflect.ValueOf(updateWatcher).MapKeys()
+	remainingUpdateWatcher := make([]string, len(keys))
+	for i := 0; i < len(keys); i++ {
+		remainingUpdateWatcher[i] = keys[i].String()
+	}
+
+	remainingWatchers := strings.Join(remainingUpdateWatcher, ",")
+	logger.Info("Update watcher has been deleted", "remaining watcher", remainingWatchers)
+
+	return nil
 }
 
 // ProcessAppNamespaceDeletion ...
@@ -513,7 +545,7 @@ func (r *AppReconciler) ProcessAppNamespaceDeletion(app *appv1alpha1.App) error 
 	}
 
 	if namespace == "" {
-		logger.Info("Unable to uninstall this app because it does not have namespace declared in its manifest.yaml file")
+		logger.Info("Unable to delete namespace because this app does not have namespace declared in its manifest.yaml file")
 		// stop here so the caller can continue with removing finalizer from Custom Resource
 		return nil
 	}
