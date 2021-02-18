@@ -468,6 +468,12 @@ func (r *AppReconciler) WatchForNewUpdate(app *appv1alpha1.App) {
 	logger.Info("Adding an update watcher for app", "app", appName)
 
 	for {
+		// It's important to have this sleep, because this function will run forever
+		// in background as Go routine. Also, this must placed at top/first in this loop.
+		// If this sleep is placed at the very bottom, the `continue` syntax below
+		// will ignore it and causing massive noises when some errors happen.
+		time.Sleep(updateWatcherSleepMinutes * time.Minute)
+
 		logger.Info("Checking for new update", "app", appName)
 		versionFromManifest, err := utils.GetAppVersion(appName)
 		if err != nil {
@@ -481,6 +487,10 @@ func (r *AppReconciler) WatchForNewUpdate(app *appv1alpha1.App) {
 			Name:      app.ObjectMeta.Name,
 		}, app)
 		if err != nil {
+			if errors.IsNotFound(err) {
+				break // terminate Go routine
+			}
+
 			logger.Error(err, "Unable to refresh app instance")
 			continue // try again in next cycle
 		}
@@ -501,10 +511,6 @@ func (r *AppReconciler) WatchForNewUpdate(app *appv1alpha1.App) {
 			logger.Error(err, "Unable to update app status (new version available)")
 			continue // try again in next cycle
 		}
-
-		// important to have this sleep, because this function will run forever
-		// in background as Go routine
-		time.Sleep(updateWatcherSleepMinutes * time.Minute)
 	}
 }
 
