@@ -23,6 +23,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/civo/bizaar-operator/api/v1alpha1"
 	appv1alpha1 "github.com/civo/bizaar-operator/api/v1alpha1"
 	"github.com/civo/bizaar-operator/pkg/utils"
 	"github.com/go-logr/logr"
@@ -45,7 +46,7 @@ import (
 const (
 	// waiting period between "did all app's dependencies have been installed" checks
 	pollIntervalSeconds       = 30
-	updateWatcherSleepMinutes = 30
+	updateWatcherSleepMinutes = 1 // TODO - change this to 30 before we go live
 )
 
 // Used to tell us if we have deployed update watcher for a given app.
@@ -129,10 +130,40 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{}, nil
 	}
 
+	// When user want to update an application, we will clear installed_version and
+	// last_status fields before "re-install" the app (with latest version)
+	if action == "update" {
+		logger.Info("Setting up update operation...")
+		appInstance.Status.InstalledVersion = ""
+		appInstance.Status.LastStatus = ""
+		appInstance.Status.NewUpdateAvailable = false
+		appInstance.Status.NewUpdateVersion = ""
+		_ = r.Status().Update(context.Background(), appInstance)
+
+		// we also need to delete the update watcher
+		err := r.DeleteUpdateWatcher(appInstance)
+		if err != nil {
+			logger.Error(err, "Failed to delete UpdateWatcher (update setup)", "app", appInstance.ObjectMeta.Name)
+			return reconcile.Result{}, err // restart reconcile
+		}
+
+		// because we just need to know if "it's an update" once,
+		// let's update it to original value
+		appInstance.Spec.Action = "install"
+		err = r.Update(context.Background(), appInstance, &client.UpdateOptions{})
+		if err != nil {
+			logger.Error(err, "Failed to update app .spec.update field")
+			return reconcile.Result{}, err // restart reconcile
+		}
+
+		// it's important to restart reconcile here so next cycle
+		// will enter the next block (pre-install stage)
+		return ctrl.Result{Requeue: true}, nil
+	}
+
 	// For `bizaar install <app_name>`
-	if lastStatus == "" && action == "install" {
+	if lastStatus == "" {
 		logger.Info("Entering pre-install stage")
-		jobsExecuted := make(map[string]appv1alpha1.JobInfo)
 
 		configMap, err := r.GetBizaarConfigMap()
 		if err != nil {
@@ -144,8 +175,13 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			return reconcile.Result{}, err // restart reconcile
 		}
 
-		configs := []appv1alpha1.Configuration{}
+		configs := appInstance.Status.Configurations
 		for _, configuration := range configurations {
+			alreadyCreated := r.IsConfigurationExists(appInstance, configuration.Key)
+			if alreadyCreated {
+				continue
+			}
+
 			configKey := configuration.Key
 			configTemplate := configuration.Template
 
@@ -234,17 +270,18 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			if err != nil {
 				return reconcile.Result{}, err // restart reconcile
 			}
-			configs = append(configs, appv1alpha1.Configuration{
-				Key:   planVariableName,
-				Value: fmt.Sprintf("%dGi", appPlan),
-			})
+
+			planExists := r.IsConfigurationExists(appInstance, planVariableName)
+			if !planExists {
+				configs = append(configs, appv1alpha1.Configuration{
+					Key:   planVariableName,
+					Value: fmt.Sprintf("%dGi", appPlan),
+				})
+			}
 		}
 
-		appInstance.Status = appv1alpha1.AppStatus{
-			LastStatus:     "pre_installation_started",
-			JobsExecuted:   jobsExecuted,
-			Configurations: configs,
-		}
+		appInstance.Status.LastStatus = "pre_installation_started"
+		appInstance.Status.Configurations = configs
 		err = r.Status().Update(ctx, appInstance)
 		if err != nil {
 			logger.Error(err, "Failed to update status")
@@ -253,9 +290,10 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 		// Race conditions safety net (maybe we can delete this)
 		time.Sleep(3 * time.Second)
+		return ctrl.Result{}, nil // stop reconcile
 	}
 
-	if lastStatus == "pre_installation_started" && action == "install" {
+	if lastStatus == "pre_installation_started" {
 		logger.Info("Entering dependency install stage")
 		installedApps, err := r.GetInstalledAppNamesMap()
 		if err != nil {
@@ -317,18 +355,18 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			// Restart the Reconcile
 			return reconcile.Result{}, err
 		}
-		status := appInstance.Status
-		status.LastStatus = "dependencies_installation_started"
-		appInstance.Status = status
+
+		appInstance.Status.LastStatus = "dependencies_installation_started"
 		err = r.Status().Update(ctx, appInstance)
 		if err != nil {
 			logger.Error(err, "Failed to update status")
 			return reconcile.Result{}, err // restart reconcile
 		}
 
+		return ctrl.Result{}, nil // stop reconcile
 	}
 
-	if lastStatus == "dependencies_installation_started" && action == "install" {
+	if lastStatus == "dependencies_installation_started" {
 		logger.Info("Entering install stage")
 
 		dependencies, err := utils.GetAppDependencies(appInstance.Spec.Name)
@@ -353,7 +391,6 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			}
 		}
 
-		jobsExecuted := make(map[string]appv1alpha1.JobInfo)
 		job := newJobPod(appInstance)
 		// Set App instance as the owner of the Job
 		if err := controllerutil.SetControllerReference(appInstance, job, r.Scheme); err != nil {
@@ -361,14 +398,14 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			return reconcile.Result{}, err
 		}
 
-		// Create a Job
+		// Create the Job
 		err = r.Create(context.Background(), job)
 		if err != nil {
-			logger.Error(err, "Failed to create job", "job.name", job.Name)
+			logger.Error(err, "Failed to create job", "job name", job.Name)
 			// Restart the Reconcile
 			return reconcile.Result{}, err
 		}
-		logger.Info("New Job was launched successfully", "job.name", job.Name)
+		logger.Info("New Job was launched successfully", "job name", job.Name)
 
 		// Refresh the App instance first so we can update it
 		err = r.Get(ctx, req.NamespacedName, appInstance)
@@ -377,19 +414,25 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			// Restart the Reconcile
 			return reconcile.Result{}, err
 		}
-		jobStatus := "installation_started"
+
+		// Prepare status update
 		timeNow := metav1.Now()
-		jobInfo := appv1alpha1.JobInfo{
+		jobStatus := "installation_started"
+		jobsExecuted := appInstance.Status.JobsExecuted
+		if len(jobsExecuted) == 0 {
+			jobsExecuted = make(map[string]appv1alpha1.JobInfo)
+		}
+
+		jobsExecuted[job.Name] = appv1alpha1.JobInfo{
 			JobStatus: jobStatus,
 			StartedAt: &timeNow,
 		}
-		jobsExecuted[job.Name] = jobInfo
 
-		status := appInstance.Status
-		status.LastStatus = jobStatus
-		status.LastJobExecuted = job.Name
-		status.JobsExecuted = jobsExecuted
-		appInstance.Status = status
+		appInstance.Status.LastStatus = jobStatus
+		appInstance.Status.LastJobExecuted = job.Name
+		appInstance.Status.JobsExecuted = jobsExecuted
+
+		// Perform status update
 		err = r.Status().Update(ctx, appInstance)
 		if err != nil {
 			logger.Error(err, "Failed to update status")
@@ -397,9 +440,13 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 
 		// Create JobWatcher for Job
+		// Set the JobWatcher name with this template: app-jw-randomID
+		// Example:
+		// * wordpress-jw-hkrb
+		jobWatcherNameTemplate := fmt.Sprintf("%s-jw-", appInstance.ObjectMeta.Name)
 		jobwatcher := &appv1alpha1.JobWatcher{
 			ObjectMeta: metav1.ObjectMeta{
-				GenerateName: appInstance.ObjectMeta.Name + "-jw-",
+				GenerateName: jobWatcherNameTemplate,
 				Namespace:    "default",
 			},
 			Spec: appv1alpha1.JobWatcherSpec{
@@ -422,18 +469,11 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			logger.Error(err, "Failed to launch JobWatcher for app", "app", appInstance.Spec.Name)
 			return reconcile.Result{}, err // restart the reconcile
 		}
+
+		return ctrl.Result{}, nil // stop reconcile
 	}
 
-	// TODO
-	// Another reconcile loop to watch the Job progress
-	// * If Job went OK, the lastStatus changed from `installation_started` to `installation_finished` and
-	// * If Job failed, the lastStatus changed from `installation_started` to `installation_failed`
-
-	if lastStatus == "installation_finished" && action == "update" {
-		logger.Info("Entering update stage")
-	}
-
-	if lastStatus == "installation_finished" || lastStatus == "update_finished" {
+	if lastStatus == "installation_finished" {
 		appName := appInstance.ObjectMeta.Name
 
 		if appInstance.Status.InstalledVersion == "" {
@@ -444,11 +484,13 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			}
 
 			appInstance.Status.InstalledVersion = version
+			logger.Info("Updating installed_version status field", "app", appName)
 			err = r.Status().Update(ctx, appInstance)
 			if err != nil {
 				logger.Error(err, "Failed to update status")
 				return reconcile.Result{}, err // restart reconcile
 			}
+			logger.Info("Successfully updated installed_version status field", "app", appName)
 		}
 
 		_, updateWatcherExists := updateWatcher[appName]
@@ -456,15 +498,28 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			go r.WatchForNewUpdate(appInstance)
 			updateWatcher[appName] = true
 		}
+
+		return ctrl.Result{}, nil // stop reconcile
 	}
 
 	return ctrl.Result{}, nil // stop reconcile
 }
 
+// IsConfigurationExists ...
+func (r *AppReconciler) IsConfigurationExists(app *appv1alpha1.App, configKey string) bool {
+	for _, config := range app.Status.Configurations {
+		if configKey == config.Key {
+			return true
+		}
+	}
+
+	return false
+}
+
 // WatchForNewUpdate ...
-func (r *AppReconciler) WatchForNewUpdate(app *appv1alpha1.App) {
+func (r *AppReconciler) WatchForNewUpdate(appInstance *appv1alpha1.App) {
 	logger := r.Log
-	appName := app.ObjectMeta.Name
+	appName := appInstance.ObjectMeta.Name
 	logger.Info("Adding an update watcher for app", "app", appName)
 
 	for {
@@ -481,10 +536,11 @@ func (r *AppReconciler) WatchForNewUpdate(app *appv1alpha1.App) {
 			continue // try again in next cycle
 		}
 
-		// refresh app instance
+		// get a fresh app instance
+		app := &v1alpha1.App{}
 		err = r.Get(context.Background(), types.NamespacedName{
-			Namespace: app.ObjectMeta.Namespace,
-			Name:      app.ObjectMeta.Name,
+			Namespace: appInstance.ObjectMeta.Namespace,
+			Name:      appInstance.ObjectMeta.Name,
 		}, app)
 		if err != nil {
 			if errors.IsNotFound(err) {
@@ -496,7 +552,7 @@ func (r *AppReconciler) WatchForNewUpdate(app *appv1alpha1.App) {
 		}
 
 		installedVersion := app.Status.InstalledVersion
-		if installedVersion != versionFromManifest {
+		if installedVersion != "" && installedVersion != versionFromManifest {
 			logger.Info("New update available", "app", appName, "installed", installedVersion, "available", versionFromManifest)
 			app.Status.NewUpdateAvailable = true
 			app.Status.NewUpdateVersion = versionFromManifest
@@ -721,9 +777,14 @@ func newJobPod(cr *appv1alpha1.App) *batchv1.Job {
 	// https://kubernetes.io/docs/concepts/workloads/controllers/job/#ttl-mechanism-for-finished-jobs
 	secondsInADay := int32(86400)
 
+	// Set job name with the following format: app-job-randomID
+	// Example:
+	// * wordpress-job-jzxbw
+	jobNameTemplate := fmt.Sprintf("%s-job-", cr.Name)
+
 	return &batchv1.Job{
 		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: cr.Name + "-job-", // Job name example: app-sample-job-jzxbw
+			GenerateName: jobNameTemplate,
 			Namespace:    cr.Namespace,
 		},
 		Spec: batchv1.JobSpec{

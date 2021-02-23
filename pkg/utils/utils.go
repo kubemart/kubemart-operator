@@ -148,7 +148,8 @@ func GenerateRandomWords(n int, app, uid string) string {
 
 	for i := 0; i < n; i++ {
 		w := gofakeit.HipsterWord()
-		words = append(words, w)
+		lw := strings.ToLower(w)
+		words = append(words, lw)
 	}
 
 	return strings.Join(words, " ")
@@ -199,6 +200,7 @@ func GetBase64String(input string) string {
 }
 
 // GetAppPlanVariableName ...
+// Look at "minio" app for example.
 func GetAppPlanVariableName(appName string) (string, error) {
 	manifest, err := GetAppManifest(appName)
 	if err != nil {

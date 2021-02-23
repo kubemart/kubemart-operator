@@ -129,7 +129,7 @@ func TestGetDepthDependenciesToInstall1(t *testing.T) {
 	installedApps := make(map[string]bool)
 
 	_ = GetDepthDependenciesToInstall(toInstall, joomlaDependencies, installedApps)
-	expected := []string{"longhorn", "mariadb", "cert-manager", "helm"}
+	expected := []string{"longhorn", "mariadb", "cert-manager"}
 	if !elementsMatch(expected, *toInstall) {
 		t.Errorf("Expected %s but got %s", expected, *toInstall)
 	}
@@ -142,7 +142,7 @@ func TestGetDepthDependenciesToInstall2(t *testing.T) {
 	installed["longhorn"] = true
 
 	_ = GetDepthDependenciesToInstall(toInstall, joomlaDependencies, installed)
-	expected := []string{"mariadb", "cert-manager", "helm"}
+	expected := []string{"mariadb", "cert-manager"}
 	if !elementsMatch(expected, *toInstall) {
 		t.Errorf("Expected %s but got %s", expected, *toInstall)
 	}
@@ -156,7 +156,7 @@ func TestGetDepthDependenciesToInstall3(t *testing.T) {
 	installed["mariadb"] = true
 
 	_ = GetDepthDependenciesToInstall(toInstall, joomlaDependencies, installed)
-	expected := []string{"cert-manager", "helm"}
+	expected := []string{"cert-manager"}
 	if !elementsMatch(expected, *toInstall) {
 		t.Errorf("Expected %s but got %s", expected, *toInstall)
 	}
@@ -169,22 +169,6 @@ func TestGetDepthDependenciesToInstall4(t *testing.T) {
 	installed["longhorn"] = true
 	installed["mariadb"] = true
 	installed["cert-manager"] = true
-
-	_ = GetDepthDependenciesToInstall(toInstall, joomlaDependencies, installed)
-	expected := []string{"helm"}
-	if !elementsMatch(expected, *toInstall) {
-		t.Errorf("Expected %s but got %s", expected, *toInstall)
-	}
-}
-
-func TestGetDepthDependenciesToInstall5(t *testing.T) {
-	toInstall := &[]string{}
-	joomlaDependencies := []string{"longhorn", "mariadb", "cert-manager"}
-	installed := make(map[string]bool)
-	installed["longhorn"] = true
-	installed["mariadb"] = true
-	installed["cert-manager"] = true
-	installed["helm"] = true
 
 	_ = GetDepthDependenciesToInstall(toInstall, joomlaDependencies, installed)
 	expected := []string{}

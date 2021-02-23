@@ -134,10 +134,9 @@ func (r *JobWatcherReconciler) updateAppAndWatcherStatus(jobStatus string, watch
 	jobInfo.JobStatus = jobStatus
 	jobInfo.EndedAt = &timeNow
 
-	jobsExecuted := make(map[string]appv1alpha1.JobInfo)
-	jobsExecuted[jobName] = jobInfo
 	app.Status.LastStatus = jobStatus
-	app.Status.JobsExecuted = jobsExecuted
+	app.Status.JobsExecuted[jobName] = jobInfo
+
 	err = r.Status().Update(ctx, app)
 	if err != nil {
 		return err
