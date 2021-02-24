@@ -37,9 +37,12 @@ jobs:
      
      - 
        name: set GO private
+       env:
+         GH_USER: ${{ secrets.GH_USER }}
+         GH_TOKEN: ${{ secrets.GH_TOKEN }}
        run: | 
          export GOPRIVATE=github.com/civo/bizaar-operator
-         git config --global url."https://${{secrets.GH_USER}}:${{secrets.GH_TOKEN}}@github.com".insteadOf "https://github.com"   
+         git config --global url."https://${GH_USER}:${GH_TOKEN}@github.com".insteadOf "https://github.com"   
      
       - name: GO mod fixes
         run: |
