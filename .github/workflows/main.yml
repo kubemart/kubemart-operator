@@ -34,7 +34,13 @@ jobs:
           DOCKER_PASSWORD: ${{ secrets.DH_TOKEN }}
         run: |
           echo "${DOCKER_PASSWORD}" | docker login --username "${DOCKER_USERNAME}" --password-stdin
-      
+     
+     - 
+       name: set GO private
+       run: | 
+         export GOPRIVATE=github.com/civo/bizaar-operator
+         git config --global url."https://${{secrets.GH_USER}}:${{secrets.GH_TOKEN}}@github.com".insteadOf "https://github.com"   
+     
       - name: GO mod fixes
         run: |
           CWD=$(pwd)
