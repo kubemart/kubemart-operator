@@ -3,7 +3,6 @@ name: bizaar-operator
 
 on:
   push:
-    branches: [ master ]
     tags:
       - "v*.*.*"
 
