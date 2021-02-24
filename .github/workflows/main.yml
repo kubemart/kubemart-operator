@@ -34,6 +34,12 @@ jobs:
           DOCKER_PASSWORD: ${{ secrets.DH_TOKEN }}
         run: |
           echo "${DOCKER_PASSWORD}" | docker login --username "${DOCKER_USERNAME}" --password-stdin
+      
+      - name: GO mod fixes
+        run: >
+          CWD=$(pwd)
+          go mod edit -replace github.com/civo/bizaar-operator/pkg/utils=$CWD/pkg/utils
+ 
       -
         name: Build
         run: >
