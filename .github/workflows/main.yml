@@ -43,12 +43,12 @@ jobs:
           export GOPRIVATE=github.com/civo/bizaar-operator
           git config --global url."https://${GH_USER}:${GH_TOKEN}@github.com".insteadOf "https://github.com"   
      
-      - 
-        name: GO mod fixes
-        run: |
-          CWD=$(pwd)
-          go mod edit -replace github.com/civo/bizaar-operator/pkg/utils=$CWD/pkg/utils
-          cat go.mod
+#      - 
+#        name: GO mod fixes
+#        run: |
+#          CWD=$(pwd)
+#          go mod edit -replace github.com/civo/bizaar-operator/pkg/utils=$CWD/pkg/utils
+#          cat go.mod
  
       -
         name: Build
