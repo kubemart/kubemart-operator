@@ -36,9 +36,10 @@ jobs:
           echo "${DOCKER_PASSWORD}" | docker login --username "${DOCKER_USERNAME}" --password-stdin
       
       - name: GO mod fixes
-        run: >
+        run: |
           CWD=$(pwd)
           go mod edit -replace github.com/civo/bizaar-operator/pkg/utils=$CWD/pkg/utils
+          cat go.mod
  
       -
         name: Build
