@@ -38,7 +38,7 @@ jobs:
       -
         name: Build
         run: >
-          make docker-build IMG=civo/bizaar-operator:${{steps.tag.outputs.tag}}
+          make docker-build-notest IMG=civo/bizaar-operator:${{steps.tag.outputs.tag}}
       -
         name: Push
         run: >
