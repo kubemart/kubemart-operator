@@ -41,7 +41,7 @@ jobs:
       -
         name: Push
         run: >
-          make docker-push IMG=civo/bizaar-operator:${{steps.tag.outputs.tag}}
+          make docker-push IMG=civo/bizaar-operator:v0.0.5
       -
         name: Change namespace
         run: >
