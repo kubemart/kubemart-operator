@@ -6,7 +6,7 @@ WORKDIR /workspace
 ARG GH_USER 
 ARG GH_TOKEN
 ENV GOPRIVATE=github.com/civo/bizaar-operator
-RUN git config --global url."https://$GH_USER:$GH_TOKEN@github.com".insteadOf "https://github.com"
+RUN git config --global url."https://${GH_USER}:${GH_TOKEN}@github.com".insteadOf "https://github.com"
 COPY go.mod go.mod
 COPY go.sum go.sum
 # cache deps before building and copying source so that we don't need to re-download as much
