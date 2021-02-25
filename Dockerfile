@@ -5,6 +5,7 @@ WORKDIR /workspace
 # Copy the Go Modules manifests
 ARG GH_USER 
 ARG GH_TOKEN
+ENV GOPRIVATE=github.com/civo/bizaar-operator
 RUN git config --global url."https://$GH_USER:$GH_TOKEN@github.com".insteadOf "https://github.com"
 COPY go.mod go.mod
 COPY go.sum go.sum
