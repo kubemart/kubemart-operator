@@ -56,7 +56,7 @@ jobs:
           GH_USER: ${{ secrets.GH_USER }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: >
-          docker build --build-arg GH_USER=${GH_USER} --build-arg GH_TOKEN=${GH_TOKEN} -t civo/bizaar-operator:${{steps.tag.outputs.tag}} .
+          docker build --build-arg GH_USER="${GH_USER}" --build-arg GH_TOKEN="${GH_TOKEN}" -t civo/bizaar-operator:${{steps.tag.outputs.tag}} .
       -
         name: Push
         run: >
