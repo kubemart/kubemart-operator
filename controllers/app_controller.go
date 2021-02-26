@@ -154,12 +154,13 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		appInstance.Spec.Action = "install"
 		err = r.Update(context.Background(), appInstance, &client.UpdateOptions{})
 		if err != nil {
-			logger.Error(err, "Failed to update app .spec.update field")
+			logger.Error(err, "Failed to update app .spec.action field")
 			return reconcile.Result{}, err // restart reconcile
 		}
 
 		// it's important to restart reconcile here so next cycle
 		// will enter the next block (pre-install stage)
+		time.Sleep(3 * time.Second)
 		return ctrl.Result{Requeue: true}, nil
 	}
 
@@ -290,7 +291,6 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			return reconcile.Result{}, err // restart reconcile
 		}
 
-		// Race conditions safety net (maybe we can delete this)
 		time.Sleep(3 * time.Second)
 		return ctrl.Result{}, nil // stop reconcile
 	}
