@@ -44,3 +44,15 @@ rules:
   - get
   - patch
   - update
+- apiGroups:
+  - bizaar.civo.com
+  resources:
+  - jobwatchers
+  verbs:
+  - create
+  - delete
+  - get
+  - list
+  - patch
+  - update
+  - watch
