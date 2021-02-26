@@ -73,3 +73,11 @@ rules:
   - patch
   - update
   - watch
+- apiGroups:
+  - bizaar.civo.com
+  resources:
+  - jobwatchers/status
+  verbs:
+  - get
+  - patch
+  - update
