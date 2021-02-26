@@ -3,6 +3,10 @@ FROM golang:1.16 as builder
 
 WORKDIR /workspace
 # Copy the Go Modules manifests
+ARG GH_USER 
+ARG GH_TOKEN
+ENV GOPRIVATE=github.com/civo/bizaar-operator
+RUN git config --global url."https://${GH_USER}:${GH_TOKEN}@github.com".insteadOf "https://github.com"
 COPY go.mod go.mod
 COPY go.sum go.sum
 # cache deps before building and copying source so that we don't need to re-download as much
@@ -12,6 +16,7 @@ RUN go mod download
 # Copy the go source
 COPY main.go main.go
 COPY api/ api/
+COPY pkg/ pkg/
 COPY controllers/ controllers/
 
 # Build

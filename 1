@@ -1,0 +1,87 @@
+
+name: bizaar-operator
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      -
+        name: checkout
+        uses: actions/checkout@v2
+      
+      -
+        uses: imranismail/setup-kustomize@v1
+        with:
+          kustomize-version: "3.8.5"
+      
+      -
+        name: Get tag
+        id: tag
+        uses: dawidd6/action-get-tag@v1
+        
+      -
+        name: Docker Login
+        env:
+          DOCKER_USERNAME: ${{ secrets.DH_USER }}
+          DOCKER_PASSWORD: ${{ secrets.DH_TOKEN }}
+        run: |
+          echo "${DOCKER_PASSWORD}" | docker login --username "${DOCKER_USERNAME}" --password-stdin
+#      - 
+#        name: set GO private
+#        env:
+#          GH_USER: ${{ secrets.GH_USER }}
+#          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+#        run: | 
+#          export GOPRIVATE=github.com/civo/bizaar-operator
+#          git config --global url."https://${GH_USER}:${GH_TOKEN}@github.com".insteadOf "https://github.com"   
+     
+#      - 
+#        name: GO mod fixes
+#        run: |
+#          CWD=$(pwd)
+#          go mod edit -replace github.com/civo/bizaar-operator/pkg/utils=$CWD/pkg/utils
+#          cat go.mod
+ 
+      -
+        name: Build
+        env: 
+          GH_USER: ${{ secrets.GH_USER }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+        run: >
+          docker build --build-arg GH_USER=${GH_USER} --build-arg GH_TOKEN=${GH_TOKEN} -t civo/bizaar-operator:${{steps.tag.outputs.tag}} .
+      -
+        name: Push
+        run: >
+          docker push civo/bizaar-operator:${{steps.tag.outputs.tag}}
+      -
+        name: Change namespace
+        run: >
+          cd config/default/ && kustomize edit set namespace "bizaar-system"
+      -
+        name: Change image
+        run: >
+          cd config/manager && kustomize edit set image controller=civo/bizaar-operator:${{steps.tag.outputs.tag}}
+      -
+        name: Generate CRD
+        run: >
+          kustomize build config/default > crd.yaml
+      - 
+        name: Change the version in the CRD
+        run: >
+          sed -i'' -e 's/$VERSION/${{steps.tag.outputs.tag}}/g' crd.yaml          
+      -
+        name: Upload binaries to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: crd.yaml
+          asset_name: bizaar-operator.yaml
+          tag: ${{ github.ref }} 
