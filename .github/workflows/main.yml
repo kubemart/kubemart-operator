@@ -16,6 +16,8 @@ jobs:
       -
         name: checkout
         uses: actions/checkout@v2
+
+      - uses: chrisdickinson/setup-yq@latest
       
       -
         uses: imranismail/setup-kustomize@v1
@@ -76,7 +78,13 @@ jobs:
       - 
         name: Change the version in the CRD
         run: >
-          sed -i'' -e 's/$VERSION/${{steps.tag.outputs.tag}}/g' crd.yaml          
+          sed -i'' -e 's/$VERSION/${{steps.tag.outputs.tag}}/g' crd.yaml   
+      -
+        name: Merge bizaar-daemon RBAC to bizaaroperator.yaml
+        run: >
+          pwd
+          ls
+          yq m --append https://raw.githubusercontent.com/civo/bizaar-daemon/master/rbac.yaml?token=${{ secrets.GH_TOKEN }} crd.yaml       
       -
         name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
