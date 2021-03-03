@@ -29,8 +29,9 @@ jobs:
         name: install yq
         run: | 
           echo $GITHUB_WORKSPACE
+          echo ls
           echo pwd
-          GO111MODULE=on go get github.com/mikefarah/yq/v2 
+          GO111MODULE=on go get -v github.com/mikefarah/yq/v2 
           which yq
 
       
