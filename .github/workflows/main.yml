@@ -16,12 +16,27 @@ jobs:
       -
         name: checkout
         uses: actions/checkout@v2
+     
+      -  
+         name: checkout daemon
+         uses: actions/checkout@master
+         with:
+           repository: civo/bizaar-daemon
+           token: ${{ secrets.GH_TOKEN }}
+           path: 'daemon'
       
       -
         uses: imranismail/setup-kustomize@v1
         with:
           kustomize-version: "3.8.5"
-      
+      -
+        name: Merge bizaar-daemon RBAC to bizaaroperator.yaml
+        run: |
+          cat $GITHUB_WORKSPACE/daemon/rbac.yaml >> crd.yaml
+          pwd
+          ls
+          cat crd.yaml
+     
       -
         name: Get tag
         id: tag
@@ -34,21 +49,6 @@ jobs:
           DOCKER_PASSWORD: ${{ secrets.DH_TOKEN }}
         run: |
           echo "${DOCKER_PASSWORD}" | docker login --username "${DOCKER_USERNAME}" --password-stdin
-#      - 
-#        name: set GO private
-#        env:
-#          GH_USER: ${{ secrets.GH_USER }}
-#          GH_TOKEN: ${{ secrets.GH_TOKEN }}
-#        run: | 
-#          export GOPRIVATE=github.com/civo/bizaar-operator
-#          git config --global url."https://${GH_USER}:${GH_TOKEN}@github.com".insteadOf "https://github.com"   
-     
-#      - 
-#        name: GO mod fixes
-#        run: |
-#          CWD=$(pwd)
-#          go mod edit -replace github.com/civo/bizaar-operator/pkg/utils=$CWD/pkg/utils
-#          cat go.mod
  
       -
         name: Build
@@ -76,7 +76,13 @@ jobs:
       - 
         name: Change the version in the CRD
         run: >
-          sed -i'' -e 's/$VERSION/${{steps.tag.outputs.tag}}/g' crd.yaml          
+          sed -i'' -e 's/$VERSION/${{steps.tag.outputs.tag}}/g' crd.yaml   
+
+      -
+        name: Merge bizaar-daemon RBAC to bizaaroperator.yaml
+        run: >
+          cat $GITHUB_WORKSPACE/daemon/rbac.yaml >> crd.yaml
+     
       -
         name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
@@ -85,3 +91,4 @@ jobs:
           file: crd.yaml
           asset_name: bizaar-operator.yaml
           tag: ${{ github.ref }} 
+
