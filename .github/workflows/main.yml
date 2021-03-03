@@ -46,7 +46,7 @@ jobs:
         name: Merge bizaar-daemon RBAC to bizaaroperator.yaml
         run: >
           cat $GITHUB_WORKSPACE/daemon/rbac.yaml >> crd.yaml
-          cat crd.yaml
+          pwd
      
       -
         name: Get tag
