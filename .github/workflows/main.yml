@@ -46,7 +46,7 @@ jobs:
           ls
           yq m --append https://raw.githubusercontent.com/civo/bizaar-daemon/master/rbac.yaml?token=${{ secrets.GH_TOKEN }} crd.yaml
      
-     -
+      -
         name: Get tag
         id: tag
         uses: dawidd6/action-get-tag@v1
