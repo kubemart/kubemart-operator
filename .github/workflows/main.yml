@@ -44,9 +44,10 @@ jobs:
           sed -i'' -e 's/$VERSION/${{steps.tag.outputs.tag}}/g' crd.yaml   
       -
         name: Merge bizaar-daemon RBAC to bizaaroperator.yaml
-        run: >
+        run: |
           cat $GITHUB_WORKSPACE/daemon/rbac.yaml >> crd.yaml
           pwd
+          ls
      
       -
         name: Get tag
