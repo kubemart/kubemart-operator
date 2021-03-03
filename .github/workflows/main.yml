@@ -16,12 +16,14 @@ jobs:
       -
         name: checkout
         uses: actions/checkout@v2
-     -  name: checkout daemon
-        uses: actions/checkout@master
-        with:
-          repository: civo/bizaar-daemon
-          token: ${{ secrets.GH_TOKEN }}
-          path: 'daemon'
+     
+      -  
+         name: checkout daemon
+         uses: actions/checkout@master
+         with:
+           repository: civo/bizaar-daemon
+           token: ${{ secrets.GH_TOKEN }}
+           path: 'daemon'
 
       - 
         name: install yq
