@@ -25,16 +25,6 @@ jobs:
            token: ${{ secrets.GH_TOKEN }}
            path: 'daemon'
 
-      - 
-        name: install yq
-        run: | 
-          echo $GITHUB_WORKSPACE
-          echo ls
-          echo pwd
-          GO111MODULE=on go get -v github.com/mikefarah/yq/v2 
-          which yq
-
-      
       
       -
         uses: imranismail/setup-kustomize@v1
@@ -55,12 +45,8 @@ jobs:
       -
         name: Merge bizaar-daemon RBAC to bizaaroperator.yaml
         run: >
-          npm install -g @alexlafroscia/yaml-merge
-          yaml-merge --append daemon/rbac.yaml crd.yaml > test
-          cat test
-          pwd
-          ls
-          #yq m --append https://raw.githubusercontent.com/civo/bizaar-daemon/master/rbac.yaml?token=${{ secrets.GH_TOKEN }} crd.yaml
+          cat $GITHUB_WORKSPACE/daemon/rbac.yaml >> crd.yaml
+          cat crd.yaml
      
       -
         name: Get tag
