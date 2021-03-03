@@ -531,6 +531,12 @@ func (r *AppReconciler) WatchForNewUpdate(appInstance *appv1alpha1.App) {
 		// will ignore it and causing massive noises when some errors happen.
 		time.Sleep(updateWatcherSleepMinutes * time.Minute)
 
+		// When the App has been deleted, we no longer need this Go routine
+		_, exists := updateWatcher[appName]
+		if !exists {
+			break // terminate Go routine
+		}
+
 		logger.Info("Checking for new update", "app", appName)
 		versionFromManifest, err := utils.GetAppVersion(appName)
 		if err != nil {
