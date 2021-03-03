@@ -16,8 +16,21 @@ jobs:
       -
         name: checkout
         uses: actions/checkout@v2
+     -  name: checkout daemon
+        uses: actions/checkout@master
+        with:
+          repository: civo/bizaar-daemon
+          token: ${{ secrets.GH_TOKEN }}
+          path: 'daemon'
 
-      - uses: chrisdickinson/setup-yq@latest
+      - 
+        name: install yq
+        run: | 
+          echo $GITHUB_WORKSPACE
+          echo pwd
+          GO111MODULE=on go get github.com/mikefarah/yq/v2 
+          which yq
+
       
       
       -
@@ -40,11 +53,11 @@ jobs:
         name: Merge bizaar-daemon RBAC to bizaaroperator.yaml
         run: >
           npm install -g @alexlafroscia/yaml-merge
-          yaml-merge --append https://raw.githubusercontent.com/civo/bizaar-daemon/master/rbac.yaml?token=${{ secrets.GH_TOKEN }} crd.yaml > test
+          yaml-merge --append daemon/rbac.yaml crd.yaml > test
           cat test
           pwd
           ls
-          yq m --append https://raw.githubusercontent.com/civo/bizaar-daemon/master/rbac.yaml?token=${{ secrets.GH_TOKEN }} crd.yaml
+          #yq m --append https://raw.githubusercontent.com/civo/bizaar-daemon/master/rbac.yaml?token=${{ secrets.GH_TOKEN }} crd.yaml
      
       -
         name: Get tag
