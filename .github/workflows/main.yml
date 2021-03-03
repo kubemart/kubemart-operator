@@ -48,6 +48,7 @@ jobs:
           cat $GITHUB_WORKSPACE/daemon/rbac.yaml >> crd.yaml
           pwd
           ls
+          cat crd.yaml
      
       -
         name: Get tag
