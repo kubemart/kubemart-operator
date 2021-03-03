@@ -19,12 +19,34 @@ jobs:
 
       - uses: chrisdickinson/setup-yq@latest
       
+      
       -
         uses: imranismail/setup-kustomize@v1
         with:
           kustomize-version: "3.8.5"
-      
       -
+        name: Change image
+        run: >
+          cd config/manager && kustomize edit set image controller=civo/bizaar-operator:${{steps.tag.outputs.tag}}
+      -
+        name: Generate CRD
+        run: >
+          kustomize build config/default > crd.yaml
+      - 
+        name: Change the version in the CRD
+        run: >
+          sed -i'' -e 's/$VERSION/${{steps.tag.outputs.tag}}/g' crd.yaml   
+      -
+        name: Merge bizaar-daemon RBAC to bizaaroperator.yaml
+        run: >
+          npm install -g @alexlafroscia/yaml-merge
+          yaml-merge --append https://raw.githubusercontent.com/civo/bizaar-daemon/master/rbac.yaml?token=${{ secrets.GH_TOKEN }} crd.yaml > test
+          cat test
+          pwd
+          ls
+          yq m --append https://raw.githubusercontent.com/civo/bizaar-daemon/master/rbac.yaml?token=${{ secrets.GH_TOKEN }} crd.yaml
+     
+     -
         name: Get tag
         id: tag
         uses: dawidd6/action-get-tag@v1
@@ -79,12 +101,7 @@ jobs:
         name: Change the version in the CRD
         run: >
           sed -i'' -e 's/$VERSION/${{steps.tag.outputs.tag}}/g' crd.yaml   
-      -
-        name: Merge bizaar-daemon RBAC to bizaaroperator.yaml
-        run: >
-          pwd
-          ls
-          yq m --append https://raw.githubusercontent.com/civo/bizaar-daemon/master/rbac.yaml?token=${{ secrets.GH_TOKEN }} crd.yaml       
+           
       -
         name: Upload binaries to release
         uses: svenstaro/upload-release-action@v2
@@ -93,3 +110,4 @@ jobs:
           file: crd.yaml
           asset_name: bizaar-operator.yaml
           tag: ${{ github.ref }} 
+
