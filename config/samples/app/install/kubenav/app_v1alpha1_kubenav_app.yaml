@@ -2,7 +2,7 @@ apiVersion: bizaar.civo.com/v1alpha1
 kind: App
 metadata:
   name: kubenav
-  namespace: default # where to place the App CR # TODO - run in different namespace?
+  namespace: bizaar-system
 spec:
   name: kubenav
   action: install

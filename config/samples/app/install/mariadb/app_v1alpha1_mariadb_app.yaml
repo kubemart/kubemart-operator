@@ -2,7 +2,7 @@ apiVersion: bizaar.civo.com/v1alpha1
 kind: App
 metadata:
   name: mariadb
-  namespace: default # where to place the App CR # TODO - run in different namespace?
+  namespace: bizaar-system
 spec:
   name: mariadb
   action: install

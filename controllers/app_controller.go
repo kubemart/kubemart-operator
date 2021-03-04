@@ -142,13 +142,6 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		appInstance.Status.NewUpdateVersion = ""
 		_ = r.Status().Update(context.Background(), appInstance)
 
-		// we also need to delete the update watcher
-		err := r.DeleteUpdateWatcher(appInstance)
-		if err != nil {
-			logger.Error(err, "Failed to delete UpdateWatcher (update setup)", "app", appInstance.ObjectMeta.Name)
-			return reconcile.Result{}, err // restart reconcile
-		}
-
 		// because we just need to know if "it's an update" once,
 		// let's update it to original value
 		appInstance.Spec.Action = "install"
@@ -331,7 +324,7 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			dApp := &appv1alpha1.App{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      depthDependency,
-					Namespace: "default",
+					Namespace: "bizaar-system",
 				},
 				Spec: appv1alpha1.AppSpec{
 					Name:   depthDependency,
@@ -380,7 +373,7 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		if len(dependencies) > 0 {
 			for _, dependency := range dependencies {
 				dApp := &appv1alpha1.App{}
-				err := r.Get(context.Background(), types.NamespacedName{Namespace: "default", Name: dependency}, dApp)
+				err := r.Get(context.Background(), types.NamespacedName{Namespace: "bizaar-system", Name: dependency}, dApp)
 				if err != nil {
 					logger.Error(err, "Failed to get dependency", "name", dependency)
 					return reconcile.Result{}, err // restart reconcile
@@ -449,10 +442,10 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		jobwatcher := &appv1alpha1.JobWatcher{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: jobWatcherNameTemplate,
-				Namespace:    "default",
+				Namespace:    "bizaar-system",
 			},
 			Spec: appv1alpha1.JobWatcherSpec{
-				Namespace:  "default",
+				Namespace:  "bizaar-system",
 				Frequency:  10, // check Job every 10 seconds
 				AppName:    appInstance.ObjectMeta.Name,
 				JobName:    job.Name,
@@ -726,7 +719,7 @@ func (r *AppReconciler) GetBizaarConfigMap() (*BizaarConfigMap, error) {
 	configMap := &v1.ConfigMap{}
 	err := r.Client.Get(context.Background(), types.NamespacedName{
 		Name:      "bizaar-config",
-		Namespace: "bizaar",
+		Namespace: "bizaar-system",
 	}, configMap)
 	if err != nil {
 		return bcm, err
@@ -813,7 +806,7 @@ func newJobPod(cr *appv1alpha1.App) *batchv1.Job {
 								// Note:
 								// The `--namespace` is the namespace where the App custom resource is running.
 								// Not where the actual workload i.e. wordpress is running.
-								fmt.Sprintf("./main --app-name %s --namespace default && cd scripts && ./install.sh", cr.Spec.Name),
+								fmt.Sprintf("./main --app-name %s --namespace bizaar-system && cd scripts && ./install.sh", cr.Spec.Name),
 							},
 						},
 					},
