@@ -5,26 +5,26 @@ on:
     tags:
       - "v*.*.*"
 
-  workflow_dispatch:
-
 jobs:
-  build:
-    runs-on: ubuntu-latest
+  build-release:
+    runs-on: ubuntu-20.04
 
     steps:
-      - name: checkout
+      - name: Checkout kubemart-operator repo
         uses: actions/checkout@v2
 
-      - name: checkout daemon
+      - name: Checkout kubemart-daemon repo
         uses: actions/checkout@master
         with:
           repository: kubemart/kubemart-daemon
           token: ${{ secrets.GH_TOKEN }}
           path: "daemon"
 
-      - uses: imranismail/setup-kustomize@v1
+      - name: Setup kustomize
+        uses: imranismail/setup-kustomize@v1
         with:
           kustomize-version: "3.8.5"
+
       - name: Merge kubemart-daemon RBAC to kubemart-operator.yaml
         run: |
           cat $GITHUB_WORKSPACE/daemon/rbac.yaml >> crd.yaml
@@ -32,44 +32,49 @@ jobs:
           ls
           cat crd.yaml
 
-      - name: Get tag
+      - name: Get current Git tag
         id: tag
         uses: dawidd6/action-get-tag@v1
 
-      - name: Docker Login
+      - name: Login to Docker
         env:
           DOCKER_USERNAME: ${{ secrets.DH_USER }}
           DOCKER_PASSWORD: ${{ secrets.DH_TOKEN }}
         run: |
           echo "${DOCKER_PASSWORD}" | docker login --username "${DOCKER_USERNAME}" --password-stdin
 
-      - name: Build
+      - name: Build Docker image
         env:
           GH_USER: ${{ secrets.GH_USER }}
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
-        run: >
+        run: |
           docker build --build-arg GH_USER="${GH_USER}" --build-arg GH_TOKEN="${GH_TOKEN}" -t kubemart/kubemart-operator:${{steps.tag.outputs.tag}} .
-      - name: Push
-        run: >
+
+      - name: Push Docker image
+        run: |
           docker push kubemart/kubemart-operator:${{steps.tag.outputs.tag}}
-      - name: Change namespace
-        run: >
+
+      - name: Change operator namespace
+        run: |
           cd config/default/ && kustomize edit set namespace "kubemart-system"
-      - name: Change image
-        run: >
+
+      - name: Change operator Docker image
+        run: |
           cd config/manager && kustomize edit set image controller=kubemart/kubemart-operator:${{steps.tag.outputs.tag}}
+
       - name: Generate CRD
-        run: >
+        run: |
           kustomize build config/default > crd.yaml
+
       - name: Change the version in the CRD
-        run: >
+        run: |
           sed -i'' -e 's/$VERSION/${{steps.tag.outputs.tag}}/g' crd.yaml
 
       - name: Merge kubemart-daemon RBAC to kubemart-operator.yaml
-        run: >
+        run: |
           cat $GITHUB_WORKSPACE/daemon/rbac.yaml >> crd.yaml
 
-      - name: Upload binaries to release
+      - name: Upload YAML file to release
         uses: svenstaro/upload-release-action@v2
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
