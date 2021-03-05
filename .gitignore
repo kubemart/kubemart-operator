@@ -1,5 +1,6 @@
 .DS_Store
 manager
+kubemart-operator
 
 # Binaries for programs and plugins
 *.exe
