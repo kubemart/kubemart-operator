@@ -7,7 +7,7 @@
 # https://github.com/operator-framework/operator-sdk/issues/1975#issuecomment-606903277
 
 export DIRECTORY=$(PWD)
-export PROJECT_PACKAGE=github.com/civo/bizaar-operator
+export PROJECT_PACKAGE=github.com/kubemart/kubemart-operator
 export GROUPS_VERSION=":v1alpha1"
 
 docker run -it --rm \

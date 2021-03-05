@@ -1,7 +1,7 @@
 domain: civo.com
 layout: go.kubebuilder.io/v2
 projectName: bizaar-operator
-repo: github.com/civo/bizaar-operator
+repo: github.com/kubemart/kubemart-operator
 resources:
 - group: bizaar
   kind: App

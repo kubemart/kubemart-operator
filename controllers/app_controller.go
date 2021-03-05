@@ -23,10 +23,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/civo/bizaar-operator/api/v1alpha1"
-	appv1alpha1 "github.com/civo/bizaar-operator/api/v1alpha1"
-	"github.com/civo/bizaar-operator/pkg/utils"
 	"github.com/go-logr/logr"
+	"github.com/kubemart/kubemart-operator/api/v1alpha1"
+	appv1alpha1 "github.com/kubemart/kubemart-operator/api/v1alpha1"
+	"github.com/kubemart/kubemart-operator/pkg/utils"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	v1 "k8s.io/api/core/v1"
