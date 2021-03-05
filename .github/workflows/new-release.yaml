@@ -1,4 +1,4 @@
-name: kubemart-operator
+name: new-release
 
 on:
   push:
@@ -6,7 +6,7 @@ on:
       - "v*.*.*"
 
 jobs:
-  build-release:
+  new-release:
     runs-on: ubuntu-20.04
 
     steps:
