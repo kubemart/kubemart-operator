@@ -1,4 +1,3 @@
-
 ---
 apiVersion: apiextensions.k8s.io/v1
 kind: CustomResourceDefinition
@@ -6,82 +5,84 @@ metadata:
   annotations:
     controller-gen.kubebuilder.io/version: v0.3.0
   creationTimestamp: null
-  name: jobwatchers.bizaar.civo.com
+  name: jobwatchers.kubemart.civo.com
 spec:
-  group: bizaar.civo.com
+  group: kubemart.civo.com
   names:
     kind: JobWatcher
     listKind: JobWatcherList
     plural: jobwatchers
     shortNames:
-    - jw
+      - jw
     singular: jobwatcher
   scope: Namespaced
   versions:
-  - name: v1alpha1
-    schema:
-      openAPIV3Schema:
-        description: JobWatcher is the Schema for the jobwatchers API
-        properties:
-          apiVersion:
-            description: 'APIVersion defines the versioned schema of this representation
-              of an object. Servers should convert recognized schemas to the latest
-              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
-            type: string
-          kind:
-            description: 'Kind is a string value representing the REST resource this
-              object represents. Servers may infer this from the endpoint the client
-              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
-            type: string
-          metadata:
-            type: object
-          spec:
-            description: JobWatcherSpec defines the desired state of JobWatcher
-            properties:
-              app_name:
-                description: The metadata.name of App CRD that launched this JobWatcher
-                type: string
-              frequency:
-                description: Frequency of the TTL checks
-                format: int64
-                minimum: 10
-                type: integer
-              job_name:
-                description: Job (Bizaar Daemon) name
-                type: string
-              max_retries:
-                format: int64
-                minimum: 10
-                type: integer
-              namespace:
-                description: Namespace to watch
-                type: string
-            required:
-            - app_name
-            - frequency
-            - job_name
-            - max_retries
-            - namespace
-            type: object
-          status:
-            description: JobWatcherStatus defines the observed state of JobWatcher
-            properties:
-              current_attempt:
-                description: This will get bumped after every job check cycle
-                format: int64
-                type: integer
-              job_status:
-                description: The status of the Job that JobWatcher is watching
-                type: string
-              reconciled:
-                description: If we have updated App's status, Reconciled will be true
-                type: boolean
-            type: object
-        type: object
-    served: true
-    storage: true
-    subresources:
-      status: {}
+    - name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          description: JobWatcher is the Schema for the jobwatchers API
+          properties:
+            apiVersion:
+              description:
+                "APIVersion defines the versioned schema of this representation
+                of an object. Servers should convert recognized schemas to the latest
+                internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources"
+              type: string
+            kind:
+              description:
+                "Kind is a string value representing the REST resource this
+                object represents. Servers may infer this from the endpoint the client
+                submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds"
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: JobWatcherSpec defines the desired state of JobWatcher
+              properties:
+                app_name:
+                  description: The metadata.name of App CRD that launched this JobWatcher
+                  type: string
+                frequency:
+                  description: Frequency of the TTL checks
+                  format: int64
+                  minimum: 10
+                  type: integer
+                job_name:
+                  description: Job (kubemart Daemon) name
+                  type: string
+                max_retries:
+                  format: int64
+                  minimum: 10
+                  type: integer
+                namespace:
+                  description: Namespace to watch
+                  type: string
+              required:
+                - app_name
+                - frequency
+                - job_name
+                - max_retries
+                - namespace
+              type: object
+            status:
+              description: JobWatcherStatus defines the observed state of JobWatcher
+              properties:
+                current_attempt:
+                  description: This will get bumped after every job check cycle
+                  format: int64
+                  type: integer
+                job_status:
+                  description: The status of the Job that JobWatcher is watching
+                  type: string
+                reconciled:
+                  description: If we have updated App's status, Reconciled will be true
+                  type: boolean
+              type: object
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}
 status:
   acceptedNames:
     kind: ""

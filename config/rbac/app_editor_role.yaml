@@ -5,7 +5,7 @@ metadata:
   name: app-editor-role
 rules:
   - apiGroups:
-      - bizaar.civo.com
+      - kubemart.civo.com
     resources:
       - apps
     verbs:
@@ -17,7 +17,7 @@ rules:
       - update
       - watch
   - apiGroups:
-      - bizaar.civo.com
+      - kubemart.civo.com
     resources:
       - apps/status
     verbs:

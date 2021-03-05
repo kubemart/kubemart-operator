@@ -42,8 +42,8 @@ import (
 
 // +kubebuilder:rbac:groups="",resources=namespaces,verbs=get;list;watch;delete
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
-// +kubebuilder:rbac:groups=bizaar.civo.com,resources=apps,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=bizaar.civo.com,resources=apps/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=kubemart.civo.com,resources=apps,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=kubemart.civo.com,resources=apps/status,verbs=get;update;patch
 
 const (
 	// waiting period between "did all app's dependencies have been installed" checks
@@ -63,8 +63,8 @@ type AppReconciler struct {
 	Scheme *runtime.Scheme
 }
 
-// BizaarConfigMap is used when reading ConfigMap
-type BizaarConfigMap struct {
+// KubemartConfigMap is used when reading ConfigMap
+type KubemartConfigMap struct {
 	EmailAddress string
 	DomainName   string
 	ClusterName  string
@@ -93,7 +93,7 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	lastStatus := appInstance.Status.LastStatus
 	action := appInstance.Spec.Action
 
-	finalizerName := "finalizers.bizaar.civo.com"
+	finalizerName := "finalizers.kubemart.civo.com"
 	if appInstance.ObjectMeta.DeletionTimestamp.IsZero() {
 		// The object is not being deleted, so if it does not have our finalizer,
 		// then lets add the finalizer and update the object
@@ -157,11 +157,11 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		return ctrl.Result{Requeue: true}, nil
 	}
 
-	// For `bizaar install <app_name>`
+	// For `kubemart install <app_name>`
 	if lastStatus == "" {
 		logger.Info("Entering pre-install stage")
 
-		configMap, err := r.GetBizaarConfigMap()
+		configMap, err := r.GetKubemartConfigMap()
 		if err != nil {
 			return reconcile.Result{}, err // restart reconcile
 		}
@@ -181,13 +181,13 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			configKey := configuration.Key
 			configTemplate := configuration.Template
 
-			justVariableName, err := utils.ExtractBizaarConfigTemplate(configTemplate)
+			justVariableName, err := utils.ExtractKubemartConfigTemplate(configTemplate)
 			if err != nil {
 				return reconcile.Result{}, err // restart reconcile
 			}
 
-			if strings.Contains(configTemplate, "BIZAAR:ALPHANUMERIC") {
-				length, err := utils.ExtractNumFromBizaarConfigTemplate(configTemplate)
+			if strings.Contains(configTemplate, "KUBEMART:ALPHANUMERIC") {
+				length, err := utils.ExtractNumFromKubemartConfigTemplate(configTemplate)
 				if err != nil {
 					return reconcile.Result{}, err // restart reconcile
 				}
@@ -206,8 +206,8 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				})
 			}
 
-			if strings.Contains(configTemplate, "BIZAAR:WORDS") {
-				length, err := utils.ExtractNumFromBizaarConfigTemplate(configTemplate)
+			if strings.Contains(configTemplate, "KUBEMART:WORDS") {
+				length, err := utils.ExtractNumFromKubemartConfigTemplate(configTemplate)
 				if err != nil {
 					return reconcile.Result{}, err // restart reconcile
 				}
@@ -222,7 +222,7 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				})
 			}
 
-			if strings.Contains(configTemplate, "BIZAAR:CLUSTER_NAME") {
+			if strings.Contains(configTemplate, "KUBEMART:CLUSTER_NAME") {
 				clusterName := configMap.ClusterName
 				value := strings.ReplaceAll(configTemplate, justVariableName, clusterName)
 				configs = append(configs, appv1alpha1.Configuration{
@@ -231,7 +231,7 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				})
 			}
 
-			if strings.Contains(configTemplate, "BIZAAR:DOMAIN_NAME") {
+			if strings.Contains(configTemplate, "KUBEMART:DOMAIN_NAME") {
 				domainName := configMap.DomainName
 				value := strings.ReplaceAll(configTemplate, justVariableName, domainName)
 				configs = append(configs, appv1alpha1.Configuration{
@@ -240,7 +240,7 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				})
 			}
 
-			if strings.Contains(configTemplate, "BIZAAR:EMAIL_ADDRESS") {
+			if strings.Contains(configTemplate, "KUBEMART:EMAIL_ADDRESS") {
 				emailAddress := configMap.EmailAddress
 				value := strings.ReplaceAll(configTemplate, justVariableName, emailAddress)
 				configs = append(configs, appv1alpha1.Configuration{
@@ -249,7 +249,7 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				})
 			}
 
-			if strings.Contains(configTemplate, "BIZAAR:MASTER_IP") {
+			if strings.Contains(configTemplate, "KUBEMART:MASTER_IP") {
 				masterIP := configMap.MasterIP
 				value := strings.ReplaceAll(configTemplate, justVariableName, masterIP)
 				configs = append(configs, appv1alpha1.Configuration{
@@ -324,7 +324,7 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			dApp := &appv1alpha1.App{
 				ObjectMeta: metav1.ObjectMeta{
 					Name:      depthDependency,
-					Namespace: "bizaar-system",
+					Namespace: "kubemart-system",
 				},
 				Spec: appv1alpha1.AppSpec{
 					Name:   depthDependency,
@@ -373,7 +373,7 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		if len(dependencies) > 0 {
 			for _, dependency := range dependencies {
 				dApp := &appv1alpha1.App{}
-				err := r.Get(context.Background(), types.NamespacedName{Namespace: "bizaar-system", Name: dependency}, dApp)
+				err := r.Get(context.Background(), types.NamespacedName{Namespace: "kubemart-system", Name: dependency}, dApp)
 				if err != nil {
 					logger.Error(err, "Failed to get dependency", "name", dependency)
 					return reconcile.Result{}, err // restart reconcile
@@ -442,10 +442,10 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		jobwatcher := &appv1alpha1.JobWatcher{
 			ObjectMeta: metav1.ObjectMeta{
 				GenerateName: jobWatcherNameTemplate,
-				Namespace:    "bizaar-system",
+				Namespace:    "kubemart-system",
 			},
 			Spec: appv1alpha1.JobWatcherSpec{
-				Namespace:  "bizaar-system",
+				Namespace:  "kubemart-system",
 				Frequency:  10, // check Job every 10 seconds
 				AppName:    appInstance.ObjectMeta.Name,
 				JobName:    job.Name,
@@ -713,13 +713,13 @@ func (r *AppReconciler) GetInstalledAppNamesMap() (map[string]bool, error) {
 	return installedAppsMap, nil
 }
 
-// GetBizaarConfigMap will fetch "bizaar-config" ConfigMap and returns BizaarConfigMap
-func (r *AppReconciler) GetBizaarConfigMap() (*BizaarConfigMap, error) {
-	bcm := &BizaarConfigMap{}
+// GetKubemartConfigMap will fetch "kubemart-config" ConfigMap and returns KubemartConfigMap
+func (r *AppReconciler) GetKubemartConfigMap() (*KubemartConfigMap, error) {
+	bcm := &KubemartConfigMap{}
 	configMap := &v1.ConfigMap{}
 	err := r.Client.Get(context.Background(), types.NamespacedName{
-		Name:      "bizaar-config",
-		Namespace: "bizaar-system",
+		Name:      "kubemart-config",
+		Namespace: "kubemart-system",
 	}, configMap)
 	if err != nil {
 		return bcm, err
@@ -772,7 +772,7 @@ func (r *AppReconciler) DeleteNamespace(namespace string) error {
 	return err
 }
 
-// newJobPod is the pod definition that contains helm, kubectl, curl, git & Civo marketplace code
+// newJobPod is the pod definition that contains helm, kubectl, curl, git & marketplace code
 func newJobPod(cr *appv1alpha1.App) *batchv1.Job {
 	// auto delete the Job (and its Pod) 24 hours after it finishes
 	// https://kubernetes.io/docs/concepts/workloads/controllers/job/#ttl-mechanism-for-finished-jobs
@@ -792,12 +792,12 @@ func newJobPod(cr *appv1alpha1.App) *batchv1.Job {
 			TTLSecondsAfterFinished: &secondsInADay,
 			Template: corev1.PodTemplateSpec{
 				Spec: corev1.PodSpec{
-					ServiceAccountName: "bizaar-daemon-svc-acc",
+					ServiceAccountName: "kubemart-daemon-svc-acc",
 					RestartPolicy:      "OnFailure",
 					Containers: []corev1.Container{
 						{
-							Name:            "bizaar-daemon",
-							Image:           "civo/bizaar-daemon:v1alpha1",
+							Name:            "kubemart-daemon",
+							Image:           "kubemart/kubemart-daemon:v1alpha1",
 							ImagePullPolicy: corev1.PullAlways,
 							Command: []string{
 								"/bin/sh", "-c",
@@ -806,7 +806,7 @@ func newJobPod(cr *appv1alpha1.App) *batchv1.Job {
 								// Note:
 								// The `--namespace` is the namespace where the App custom resource is running.
 								// Not where the actual workload i.e. wordpress is running.
-								fmt.Sprintf("./main --app-name %s --namespace bizaar-system && cd scripts && ./install.sh", cr.Spec.Name),
+								fmt.Sprintf("./main --app-name %s --namespace kubemart-system && cd scripts && ./install.sh", cr.Spec.Name),
 							},
 						},
 					},

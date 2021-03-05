@@ -42,7 +42,7 @@ rules:
   verbs:
   - get
 - apiGroups:
-  - bizaar.civo.com
+  - kubemart.civo.com
   resources:
   - apps
   verbs:
@@ -54,7 +54,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - bizaar.civo.com
+  - kubemart.civo.com
   resources:
   - apps/status
   verbs:
@@ -62,7 +62,7 @@ rules:
   - patch
   - update
 - apiGroups:
-  - bizaar.civo.com
+  - kubemart.civo.com
   resources:
   - jobwatchers
   verbs:
@@ -74,7 +74,7 @@ rules:
   - update
   - watch
 - apiGroups:
-  - bizaar.civo.com
+  - kubemart.civo.com
   resources:
   - jobwatchers/status
   verbs:

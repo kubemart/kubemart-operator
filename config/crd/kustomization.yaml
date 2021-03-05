@@ -2,8 +2,8 @@
 # since it depends on service name and namespace that are out of this kustomize package.
 # It should be run by config/default
 resources:
-  - bases/bizaar.civo.com_apps.yaml
-  - bases/bizaar.civo.com_jobwatchers.yaml
+  - bases/kubemart.civo.com_apps.yaml
+  - bases/kubemart.civo.com_jobwatchers.yaml
 # +kubebuilder:scaffold:crdkustomizeresource
 
 patchesStrategicMerge:

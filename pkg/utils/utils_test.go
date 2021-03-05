@@ -11,11 +11,11 @@ func TestGetAppConfigurations1(t *testing.T) {
 	expected := []ParsedConfiguration{
 		{
 			Key:      "MINIO_ACCESS_KEY",
-			Template: "BIZAAR:ALPHANUMERIC(10)",
+			Template: "KUBEMART:ALPHANUMERIC(10)",
 		},
 		{
 			Key:      "MINIO_SECRET_KEY",
-			Template: "BIZAAR:ALPHANUMERIC(30)",
+			Template: "KUBEMART:ALPHANUMERIC(30)",
 		},
 	}
 
@@ -30,15 +30,15 @@ func TestGetAppConfigurations2(t *testing.T) {
 	expected := []ParsedConfiguration{
 		{
 			Key:      "CLUSTER_NAME",
-			Template: "BIZAAR:CLUSTER_NAME",
+			Template: "KUBEMART:CLUSTER_NAME",
 		},
 		{
 			Key:      "CONTROL_PLANE_ADDRESS",
-			Template: "https://BIZAAR:MASTER_IP:6443",
+			Template: "https://KUBEMART:MASTER_IP:6443",
 		},
 		{
 			Key:      "BASIC_AUTH_PASSWORD",
-			Template: "BIZAAR:ALPHANUMERIC(10)",
+			Template: "KUBEMART:ALPHANUMERIC(10)",
 		},
 	}
 
@@ -47,34 +47,34 @@ func TestGetAppConfigurations2(t *testing.T) {
 	}
 }
 
-func TestExtractBizaarConfigTemplate1(t *testing.T) {
-	actual, _ := ExtractBizaarConfigTemplate("BIZAAR:MASTER_IP")
-	expected := "BIZAAR:MASTER_IP"
+func TestExtractKubemartConfigTemplate1(t *testing.T) {
+	actual, _ := ExtractKubemartConfigTemplate("KUBEMART:MASTER_IP")
+	expected := "KUBEMART:MASTER_IP"
 
 	if expected != actual {
 		t.Errorf("Expected %s but got %s", expected, actual)
 	}
 }
 
-func TestExtractBizaarConfigTemplate2(t *testing.T) {
-	actual, _ := ExtractBizaarConfigTemplate("https://BIZAAR:MASTER_IP:6443")
-	expected := "BIZAAR:MASTER_IP"
+func TestExtractKubemartConfigTemplate2(t *testing.T) {
+	actual, _ := ExtractKubemartConfigTemplate("https://KUBEMART:MASTER_IP:6443")
+	expected := "KUBEMART:MASTER_IP"
 
 	if expected != actual {
 		t.Errorf("Expected %s but got %s", expected, actual)
 	}
 }
 
-func TestExtractNumFromBizaarConfigTemplate1(t *testing.T) {
-	r, _ := ExtractNumFromBizaarConfigTemplate("BIZAAR:ALPHANUMERIC(30)")
+func TestExtractNumFromKubemartConfigTemplate1(t *testing.T) {
+	r, _ := ExtractNumFromKubemartConfigTemplate("KUBEMART:ALPHANUMERIC(30)")
 	expected := 30
 	if expected != r {
 		t.Errorf("Expected %d but got %d", expected, r)
 	}
 }
 
-func TestExtractNumFromBizaarConfigTemplate2(t *testing.T) {
-	r, _ := ExtractNumFromBizaarConfigTemplate("xxxBIZAAR:WORDS(20)xxx")
+func TestExtractNumFromKubemartConfigTemplate2(t *testing.T) {
+	r, _ := ExtractNumFromKubemartConfigTemplate("xxxKUBEMART:WORDS(20)xxx")
 	expected := 20
 	if expected != r {
 		t.Errorf("Expected %d but got %d", expected, r)

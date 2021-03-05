@@ -50,8 +50,8 @@ type JobWatcherReconciler struct {
 
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=batch,resources=jobs/status,verbs=get
-// +kubebuilder:rbac:groups=bizaar.civo.com,resources=jobwatchers,verbs=get;list;watch;create;update;patch;delete
-// +kubebuilder:rbac:groups=bizaar.civo.com,resources=jobwatchers/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=kubemart.civo.com,resources=jobwatchers,verbs=get;list;watch;create;update;patch;delete
+// +kubebuilder:rbac:groups=kubemart.civo.com,resources=jobwatchers/status,verbs=get;update;patch
 
 // Reconcile is called either when one of our CRDs change
 // or if the returned ctrl.Result isn’t empty (or an error is returned)

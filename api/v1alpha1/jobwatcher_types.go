@@ -38,7 +38,7 @@ type JobWatcherSpec struct {
 	// The metadata.name of App CRD that launched this JobWatcher
 	AppName string `json:"app_name"`
 
-	// Job (Bizaar Daemon) name
+	// Job (kubemart-daemon pod) name
 	JobName string `json:"job_name"`
 
 	// +kubebuilder:validation:Minimum=10

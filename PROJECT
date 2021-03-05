@@ -1,12 +1,12 @@
 domain: civo.com
 layout: go.kubebuilder.io/v2
-projectName: bizaar-operator
+projectName: kubemart-operator
 repo: github.com/kubemart/kubemart-operator
 resources:
-- group: bizaar
+- group: kubemart
   kind: App
   version: v1alpha1
-- group: bizaar
+- group: kubemart
   kind: JobWatcher
   version: v1alpha1
 version: 3-alpha

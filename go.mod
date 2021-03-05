@@ -16,4 +16,4 @@ require (
 	sigs.k8s.io/controller-runtime v0.6.3
 )
 
-// replace github.com/kubemart/kubemart-operator/pkg/utils => /Users/zulh/civo/bizaar-operator/pkg/utils
+// replace github.com/kubemart/kubemart-operator/pkg/utils => /Users/zulh/kubemart/kubemart-operator/pkg/utils

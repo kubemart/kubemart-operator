@@ -1,8 +1,8 @@
-apiVersion: bizaar.civo.com/v1alpha1
+apiVersion: kubemart.civo.com/v1alpha1
 kind: App
 metadata:
   name: rabbitmq
-  namespace: bizaar-system
+  namespace: kubemart-system
 spec:
   name: rabbitmq
   action: update

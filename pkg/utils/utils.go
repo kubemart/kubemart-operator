@@ -48,7 +48,7 @@ type AppManifest struct {
 // So, we need to put the key inside a struct like below to make our work easier.
 type ParsedConfiguration struct {
 	Key      string // e.g. "CONTROL_PLANE_ADDRESS"
-	Template string // e.g. "https://BIZAAR:MASTER_IP:6443"
+	Template string // e.g. "https://KUBEMART:MASTER_IP:6443"
 }
 
 // GetAppManifest ...
@@ -155,9 +155,9 @@ func GenerateRandomWords(n int, app, uid string) string {
 	return strings.Join(words, " ")
 }
 
-// ExtractNumFromBizaarConfigTemplate takes Bizaar config template e.g. BIZAAR:ALPHANUMERIC(30)
-// or BIZAAR:WORDS(30) and return 30 (int)
-func ExtractNumFromBizaarConfigTemplate(template string) (int, error) {
+// ExtractNumFromKubemartConfigTemplate takes Kubemart config template e.g. KUBEMART:ALPHANUMERIC(30)
+// or KUBEMART:WORDS(30) and return 30 (int)
+func ExtractNumFromKubemartConfigTemplate(template string) (int, error) {
 	r, err := regexp2.Compile(`(?<=\()\d+(?=\))`, 0)
 	if err != nil {
 		return 0, err
@@ -178,10 +178,10 @@ func ExtractNumFromBizaarConfigTemplate(template string) (int, error) {
 
 }
 
-// ExtractBizaarConfigTemplate takes Bizaar config template e.g. "https://BIZAAR:MASTER_IP:6443"
-// and returns just "BIZAAR:MASTER_IP". Examples: https://rubular.com/r/egFowm7E0S4Esg.
-func ExtractBizaarConfigTemplate(template string) (string, error) {
-	r, err := regexp.Compile(`BIZAAR:[A-Z_0-9()]+`)
+// ExtractKubemartConfigTemplate takes Kubemart config template e.g. "https://KUBEMART:MASTER_IP:6443"
+// and returns just "KUBEMART:MASTER_IP". Examples: https://rubular.com/r/egFowm7E0S4Esg.
+func ExtractKubemartConfigTemplate(template string) (string, error) {
+	r, err := regexp.Compile(`KUBEMART:[A-Z_0-9()]+`)
 	if err != nil {
 		return "", err
 	}
