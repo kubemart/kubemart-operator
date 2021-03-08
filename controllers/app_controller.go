@@ -48,7 +48,7 @@ import (
 const (
 	// waiting period between "did all app's dependencies have been installed" checks
 	pollIntervalSeconds       = 30
-	updateWatcherSleepMinutes = 1 // TODO - change this to 30 before we go live
+	updateWatcherSleepMinutes = 5 // TODO - change this to 30 before we go live
 )
 
 // Used to tell us if we have deployed update watcher for a given app.
@@ -378,7 +378,7 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 					logger.Error(err, "Failed to get dependency", "name", dependency)
 					return reconcile.Result{}, err // restart reconcile
 				}
-				// TODO - add apps in update status as well
+
 				if dApp.Status.LastStatus != "installation_finished" {
 					logger.Info("Waiting for dependency installation to complete", "app", appInstance.Spec.Name, "dependency", dependency)
 					return ctrl.Result{RequeueAfter: pollIntervalSeconds * time.Second}, nil
@@ -704,7 +704,6 @@ func (r *AppReconciler) GetInstalledAppNamesMap() (map[string]bool, error) {
 	}
 
 	for _, app := range apps.Items {
-		// TODO - add apps in update status as well
 		if app.Status.LastStatus == "installation_finished" {
 			installedAppsMap[app.Spec.Name] = true
 		}

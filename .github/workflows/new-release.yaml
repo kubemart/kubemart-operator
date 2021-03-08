@@ -17,7 +17,6 @@ jobs:
         uses: actions/checkout@master
         with:
           repository: kubemart/kubemart-daemon
-          token: ${{ secrets.GH_TOKEN }}
           path: "daemon"
 
       - name: Setup kustomize
@@ -44,11 +43,8 @@ jobs:
           echo "${DOCKER_PASSWORD}" | docker login --username "${DOCKER_USERNAME}" --password-stdin
 
       - name: Build Docker image
-        env:
-          GH_USER: ${{ secrets.GH_USER }}
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
         run: |
-          docker build --build-arg GH_USER="${GH_USER}" --build-arg GH_TOKEN="${GH_TOKEN}" -t kubemart/kubemart-operator:${{steps.tag.outputs.tag}} .
+          docker build -t kubemart/kubemart-operator:${{steps.tag.outputs.tag}} .
 
       - name: Push Docker image
         run: |
