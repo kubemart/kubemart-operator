@@ -340,7 +340,7 @@ func GetAppPlans(appName string) ([]int, error) {
 	return plans, nil
 }
 
-// GetSmallestAppPlan take plans slice e.g. [20,5,10] and return 5 (int)
+// GetSmallestAppPlan take sorted plans slice e.g. [5,10,20] and return 5 (int)
 func GetSmallestAppPlan(sortedPlans []int) int {
 	return sortedPlans[0]
 }
