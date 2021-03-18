@@ -8,9 +8,22 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Run tests
+      - name: Run utils tests
         run: |
           go test -v ./pkg/utils
+
+      - name: Setup controller tests
+        run: |
+          make setup-test
+          go install github.com/onsi/ginkgo/ginkgo
+      
+      - name: Run controller tests
+        run: |
+          chmod +x ./controllers/suite_test.sh
+          ./controllers/suite_test.sh
+
+      - name: Post controller tests
+        run: kind delete cluster --name default
 
   # =======================================================================
 

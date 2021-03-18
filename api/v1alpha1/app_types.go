@@ -68,6 +68,8 @@ type AppStatus struct {
 // +kubebuilder:object:root=true
 // +kubebuilder:subresource:status
 // +kubebuilder:resource:shortName="app"
+// +kubebuilder:printcolumn:name="Current Status",type="string",JSONPath=".status.last_status",description="Latest status of the App"
+// +kubebuilder:printcolumn:name="Version",type="string",JSONPath=".status.installed_version",description="Installed version of the App"
 // +genclient
 
 // App is the Schema for the apps API

@@ -18,7 +18,16 @@ spec:
     singular: app
   scope: Namespaced
   versions:
-  - name: v1alpha1
+  - additionalPrinterColumns:
+    - description: Latest status of the App
+      jsonPath: .status.last_status
+      name: Current Status
+      type: string
+    - description: Installed version of the App
+      jsonPath: .status.installed_version
+      name: Version
+      type: string
+    name: v1alpha1
     schema:
       openAPIV3Schema:
         description: App is the Schema for the apps API
