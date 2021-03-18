@@ -14,11 +14,11 @@ jobs:
       
       - name: Setup controller tests
         env:
-          ENVTEST_ASSETS_DIR: ${GITHUB_WORKSPACE}/testbin
+          ENVTEST_ASSETS_DIR: ${{ github.workspace }}/testbin
         run: |
-          source ${ENVTEST_ASSETS_DIR}/setup-envtest.sh
-          fetch_envtest_tools ${ENVTEST_ASSETS_DIR}
-          setup_envtest_env ${ENVTEST_ASSETS_DIR}
+          source $ENVTEST_ASSETS_DIR/setup-envtest.sh
+          fetch_envtest_tools $ENVTEST_ASSETS_DIR
+          setup_envtest_env $ENVTEST_ASSETS_DIR
           go install github.com/onsi/ginkgo/ginkgo
       
       - name: Run controller tests
