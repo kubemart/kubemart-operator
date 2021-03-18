@@ -13,6 +13,7 @@ jobs:
           go test -v ./pkg/utils
 
       - name: Setup controller tests
+        shell: bash
         run: |
           make setup-test
           go install github.com/onsi/ginkgo/ginkgo
