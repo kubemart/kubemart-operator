@@ -12,11 +12,12 @@ jobs:
         run: |
           go test -v ./pkg/utils
 
+      - name: Install Ginkgo CLI
+        run: go install github.com/onsi/ginkgo/ginkgo
+      
       - name: Setup controller tests
         shell: bash
-        run: |
-          make setup-test
-          go install github.com/onsi/ginkgo/ginkgo
+        run: make setup-test
       
       - name: Run controller tests
         run: |
