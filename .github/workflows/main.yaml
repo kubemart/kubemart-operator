@@ -12,7 +12,9 @@ jobs:
         run: go test -v ./pkg/utils
       
       - name: Set GOBIN
-        run: echo "GOBIN=$GOPATH/bin" >> $GITHUB_ENV
+        run: |
+          echo $GOPATH
+          echo "GOBIN=$GOPATH/bin" >> $GITHUB_ENV
       
       - name: Setup controller tests
         env:
