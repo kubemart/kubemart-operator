@@ -4,14 +4,15 @@ on: push
 jobs:
   run-tests:
     runs-on: ubuntu-20.04
-    env:
-      GOBIN: ${PWD}/bin
     steps:
       - name: Checkout
         uses: actions/checkout@v2
 
       - name: Run utils tests
         run: go test -v ./pkg/utils
+
+      - name: Set GOBIN
+        run: echo GOBIN=${GITHUB_WORKSPACE}/bin >> $GITHUB_ENV
 
       # Adding a system path
       # https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#adding-a-system-path
