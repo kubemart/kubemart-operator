@@ -13,25 +13,25 @@ jobs:
         with:
           go-version: '^1.16'
 
-      - name: Set GOBIN environment variable
-        run: echo "GOBIN=$GOPATH/bin" >> $GITHUB_ENV
-
       - name: Run utils tests
         run: go test -v ./pkg/utils
       
       - name: Setup controller tests
         env:
           ENVTEST_ASSETS_DIR: ${{ github.workspace }}/testbin
+          GOBIN: ${{ env.GOPATH }}/bin
         run: |
-          echo GOBIN: $GOBIN
+          echo GOPATH: $GOPATH
           source $ENVTEST_ASSETS_DIR/setup-envtest.sh
           fetch_envtest_tools $ENVTEST_ASSETS_DIR
           setup_envtest_env $ENVTEST_ASSETS_DIR
           go install github.com/onsi/ginkgo/ginkgo
       
       - name: Run controller tests
+        env:
+          GOBIN: ${{ env.GOPATH }}/bin
         run: |
-          echo GOBIN: $GOBIN
+          echo GOPATH: $GOPATH
           chmod +x ./controllers/suite_test.sh
           ./controllers/suite_test.sh
 
