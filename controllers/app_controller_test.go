@@ -274,6 +274,64 @@ var _ = Describe("App controller\n", func() {
 
 			Expect(ingNames).To(ContainElement("wordpress"))
 		})
+
+		It("Should create configurations for mariadb", func() {
+			lookupKey := types.NamespacedName{Name: "mariadb", Namespace: systemNamespace}
+			createdApp := &v1alpha1.App{}
+
+			Eventually(func() []v1alpha1.Configuration {
+				err := directClient.Get(ctx, lookupKey, createdApp)
+				if err != nil {
+					return nil
+				}
+
+				return createdApp.Status.Configurations
+			}, timeout, interval).ShouldNot(BeNil())
+
+			confs := make(map[string]v1alpha1.Configuration)
+			for _, c := range createdApp.Status.Configurations {
+				confs[c.Key] = c
+			}
+
+			Expect(confs["MYSQL_ROOT_PASSWORD"].Value).ShouldNot(BeEmpty())
+			Expect(confs["MYSQL_ROOT_PASSWORD"].ValueIsBase64).Should(BeTrue())
+		})
+
+		It("Should create configurations for wordpress", func() {
+			lookupKey := types.NamespacedName{Name: appName, Namespace: systemNamespace}
+			createdApp := &v1alpha1.App{}
+
+			Eventually(func() []v1alpha1.Configuration {
+				err := directClient.Get(ctx, lookupKey, createdApp)
+				if err != nil {
+					return nil
+				}
+
+				return createdApp.Status.Configurations
+			}, timeout, interval).ShouldNot(BeNil())
+
+			confs := make(map[string]v1alpha1.Configuration)
+			for _, c := range createdApp.Status.Configurations {
+				confs[c.Key] = c
+			}
+
+			Expect(confs["DOMAIN_NAME"].Value).ShouldNot(BeEmpty())
+			Expect(confs["DOMAIN_NAME"].ValueIsBase64).Should(BeFalse())
+		})
+
+		It("Should have 1 job executed (that installs wordpress)", func() {
+			lookupKey := types.NamespacedName{Name: appName, Namespace: systemNamespace}
+			createdApp := &v1alpha1.App{}
+
+			Eventually(func() int {
+				err := directClient.Get(ctx, lookupKey, createdApp)
+				if err != nil {
+					return -1
+				}
+
+				return len(createdApp.Status.JobsExecuted)
+			}, timeout, interval).Should(Equal(1))
+		})
 	})
 
 })

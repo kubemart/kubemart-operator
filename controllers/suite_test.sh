@@ -1,6 +1,11 @@
 #!/bin/bash
 
+echo "***"
+echo "Deleting Kind cluster (if any)..."
 kind delete cluster --name default
+
+echo "***"
+echo "Creating a new Kind cluster..."
 kind create cluster --name default
 
 echo "***"

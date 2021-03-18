@@ -13,25 +13,19 @@ jobs:
 
       # Adding a system path
       # https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#adding-a-system-path
-      - name: Update PATH and set environment variables
+      - name: Update PATH and set environment variable
         run: |
           GOBIN_PATH=${GITHUB_WORKSPACE}/bin
           echo $GOBIN_PATH >> $GITHUB_PATH
           echo GOBIN=$GOBIN_PATH >> $GITHUB_ENV
-          echo ENVTEST_ASSETS_DIR=${GITHUB_WORKSPACE}/testbin >> $GITHUB_ENV
       
-      - name: Print PATH and environment variables
+      - name: Print PATH and environment variable
         run: |
           echo PATH: $PATH
           echo GOBIN: $GOBIN
-          echo ENVTEST_ASSETS_DIR: $ENVTEST_ASSETS_DIR
-      
-      - name: Setup controller tests
-        run: |
-          source $ENVTEST_ASSETS_DIR/setup-envtest.sh
-          fetch_envtest_tools $ENVTEST_ASSETS_DIR
-          setup_envtest_env $ENVTEST_ASSETS_DIR
-          go install github.com/onsi/ginkgo/ginkgo
+
+      - name: Install Ginkgo CLI
+        run: go install github.com/onsi/ginkgo/ginkgo
       
       - name: Run controller tests
         run: |
