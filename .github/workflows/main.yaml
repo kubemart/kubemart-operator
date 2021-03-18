@@ -8,9 +8,32 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
-      - name: Run tests
+      - name: Run utils tests
+        run: go test -v ./pkg/utils
+
+      # Adding a system path
+      # https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#adding-a-system-path
+      - name: Update PATH and set environment variable
         run: |
-          go test -v ./pkg/utils
+          GOBIN_PATH=${GITHUB_WORKSPACE}/bin
+          echo $GOBIN_PATH >> $GITHUB_PATH
+          echo GOBIN=$GOBIN_PATH >> $GITHUB_ENV
+      
+      - name: Print PATH and environment variable
+        run: |
+          echo PATH: $PATH
+          echo GOBIN: $GOBIN
+
+      - name: Install Ginkgo CLI
+        run: go install github.com/onsi/ginkgo/ginkgo
+      
+      - name: Run controller tests
+        run: |
+          chmod +x ./controllers/suite_test.sh
+          ./controllers/suite_test.sh
+
+      - name: Post controller tests
+        run: kind delete cluster --name default
 
   # =======================================================================
 
