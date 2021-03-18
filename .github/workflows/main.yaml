@@ -4,23 +4,24 @@ on: push
 jobs:
   run-tests:
     runs-on: ubuntu-20.04
+    env:
+      GOBIN: $PWD/bin
     steps:
       - name: Checkout
         uses: actions/checkout@v2
-      
-      # - name: Setup Go
-      #   uses: actions/setup-go@v2
-      #   with:
-      #     go-version: '^1.16'
 
       - name: Run utils tests
         run: go test -v ./pkg/utils
+
+      # Adding a system path
+      # https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#adding-a-system-path
+      - name: Update PATH
+        run: echo $GOBIN >> $GITHUB_PATH
       
       - name: Setup controller tests
         env:
           ENVTEST_ASSETS_DIR: ${{ github.workspace }}/testbin
         run: |
-          export GOBIN=$PWD/bin
           echo $GOBIN
           source $ENVTEST_ASSETS_DIR/setup-envtest.sh
           fetch_envtest_tools $ENVTEST_ASSETS_DIR
@@ -29,7 +30,6 @@ jobs:
       
       - name: Run controller tests
         run: |
-          export GOBIN=$PWD/bin
           echo $GOBIN
           chmod +x ./controllers/suite_test.sh
           ./controllers/suite_test.sh
