@@ -11,13 +11,15 @@ jobs:
       - name: Run utils tests
         run: |
           go test -v ./pkg/utils
-
-      - name: Install Ginkgo CLI
-        run: go install github.com/onsi/ginkgo/ginkgo
       
       - name: Setup controller tests
-        shell: bash
-        run: make setup-test
+        env:
+          ENVTEST_ASSETS_DIR: ${GITHUB_WORKSPACE}
+        run: |
+          source $(ENVTEST_ASSETS_DIR)/setup-envtest.sh
+          fetch_envtest_tools $(ENVTEST_ASSETS_DIR)
+          setup_envtest_env $(ENVTEST_ASSETS_DIR)
+          go install github.com/onsi/ginkgo/ginkgo
       
       - name: Run controller tests
         run: |
