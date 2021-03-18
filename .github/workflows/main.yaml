@@ -4,8 +4,6 @@ on: push
 jobs:
   run-tests:
     runs-on: ubuntu-20.04
-    env:
-      GOBIN: ${{ env.GOPATH }}/bin
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -17,6 +15,7 @@ jobs:
         env:
           ENVTEST_ASSETS_DIR: ${{ github.workspace }}/testbin
         run: |
+          echo "$GOPATH/bin" >> $GITHUB_PATH
           echo GOBIN: $GOBIN
           source $ENVTEST_ASSETS_DIR/setup-envtest.sh
           fetch_envtest_tools $ENVTEST_ASSETS_DIR
