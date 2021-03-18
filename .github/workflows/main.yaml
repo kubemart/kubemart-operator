@@ -11,19 +11,23 @@ jobs:
       - name: Run utils tests
         run: go test -v ./pkg/utils
 
-      - name: Set GOBIN
-        run: echo GOBIN=${GITHUB_WORKSPACE}/bin >> $GITHUB_ENV
-
       # Adding a system path
       # https://docs.github.com/en/actions/reference/workflow-commands-for-github-actions#adding-a-system-path
-      - name: Update PATH
-        run: echo $GOBIN >> $GITHUB_PATH
+      - name: Update PATH and set environment variables
+        run: |
+          GOBIN_PATH=${GITHUB_WORKSPACE}/bin
+          echo $GOBIN_PATH >> $GITHUB_PATH
+          echo GOBIN=$GOBIN_PATH >> $GITHUB_ENV
+          echo ENVTEST_ASSETS_DIR=${GITHUB_WORKSPACE}/testbin >> $GITHUB_ENV
+      
+      - name: Print PATH and environment variables
+        run: |
+          echo PATH: $PATH
+          echo GOBIN: $GOBIN
+          echo ENVTEST_ASSETS_DIR: $ENVTEST_ASSETS_DIR
       
       - name: Setup controller tests
-        env:
-          ENVTEST_ASSETS_DIR: ${{ github.workspace }}/testbin
         run: |
-          echo $GOBIN
           source $ENVTEST_ASSETS_DIR/setup-envtest.sh
           fetch_envtest_tools $ENVTEST_ASSETS_DIR
           setup_envtest_env $ENVTEST_ASSETS_DIR
@@ -31,7 +35,6 @@ jobs:
       
       - name: Run controller tests
         run: |
-          echo $GOBIN
           chmod +x ./controllers/suite_test.sh
           ./controllers/suite_test.sh
 
