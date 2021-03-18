@@ -11,11 +11,13 @@ jobs:
       - name: Run utils tests
         run: go test -v ./pkg/utils
       
+      - name: Set GOBIN
+        run: echo "GOBIN=$GOPATH/bin" >> $GITHUB_ENV
+      
       - name: Setup controller tests
         env:
           ENVTEST_ASSETS_DIR: ${{ github.workspace }}/testbin
         run: |
-          echo "$GOPATH/bin" >> $GITHUB_PATH
           echo GOBIN: $GOBIN
           source $ENVTEST_ASSETS_DIR/setup-envtest.sh
           fetch_envtest_tools $ENVTEST_ASSETS_DIR
