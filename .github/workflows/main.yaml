@@ -5,7 +5,7 @@ jobs:
   run-tests:
     runs-on: ubuntu-20.04
     env:
-      GOBIN: $PWD/bin
+      GOBIN: ${PWD}/bin
     steps:
       - name: Checkout
         uses: actions/checkout@v2
