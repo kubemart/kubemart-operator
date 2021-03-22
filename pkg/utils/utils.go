@@ -25,7 +25,8 @@ const (
 	marketplaceBranch  = "b"
 )
 
-// AppManifest is the original structure of app's manifest.yaml file
+// AppManifest is the structure of app's manifest.yaml file
+// coming from kubernetes-marketplace repository
 type AppManifest struct {
 	Version      string   `yaml:"version"`
 	Namespace    string   `yaml:"namespace"`
@@ -51,7 +52,7 @@ type ParsedConfiguration struct {
 	Template string // e.g. "https://KUBEMART:MASTER_IP:6443"
 }
 
-// GetAppManifest ...
+// GetAppManifest will fetch app's manifest.yaml file and return AppManifest
 func GetAppManifest(appName string) (*AppManifest, error) {
 	manifest := &AppManifest{}
 	url := fmt.Sprintf("https://raw.githubusercontent.com/%s/kubernetes-marketplace/%s/%s/manifest.yaml", marketplaceAccount, marketplaceBranch, appName)
@@ -73,7 +74,7 @@ func GetAppManifest(appName string) (*AppManifest, error) {
 	return manifest, nil
 }
 
-// GetAppVersion ...
+// GetAppVersion returns the app's version from the app's manifest.yaml file
 func GetAppVersion(appName string) (string, error) {
 	manifest, err := GetAppManifest(appName)
 	if err != nil {
@@ -82,13 +83,14 @@ func GetAppVersion(appName string) (string, error) {
 
 	version := manifest.Version
 	if version == "" {
-		return "", fmt.Errorf("Version is empty")
+		return "", fmt.Errorf("version is empty")
 	}
 
 	return version, nil
 }
 
-// GetAppConfigurations ...
+// GetAppConfigurations returns all the app's configurations
+// from the app's manifest.yaml file
 func GetAppConfigurations(appName string) ([]ParsedConfiguration, error) {
 	parsedConfigs := []ParsedConfiguration{}
 	manifest, err := GetAppManifest(appName)
@@ -122,7 +124,7 @@ func GetSeed(app, uid string) int64 {
 	return int64(seed)
 }
 
-// GenerateRandomAlphanumeric ...
+// GenerateRandomAlphanumeric returns random 'n' sized alphanumeric characters
 func GenerateRandomAlphanumeric(n int, app, uid string) (string, error) {
 	letters := []byte("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789")
 	b := make([]byte, n)
@@ -140,7 +142,7 @@ func GenerateRandomAlphanumeric(n int, app, uid string) (string, error) {
 
 }
 
-// GenerateRandomWords ...
+// GenerateRandomWords returns random 'n' sized words
 func GenerateRandomWords(n int, app, uid string) string {
 	seed := GetSeed(app, uid)
 	gofakeit.Seed(seed)
@@ -156,7 +158,8 @@ func GenerateRandomWords(n int, app, uid string) string {
 }
 
 // ExtractNumFromKubemartConfigTemplate takes Kubemart config template e.g. KUBEMART:ALPHANUMERIC(30)
-// or KUBEMART:WORDS(30) and return 30 (int)
+// or KUBEMART:WORDS(30) and return 30 (int).
+// Examples: https://rubular.com/r/oA0QjdK0uOu8Q9.
 func ExtractNumFromKubemartConfigTemplate(template string) (int, error) {
 	r, err := regexp2.Compile(`(?<=\()\d+(?=\))`, 0)
 	if err != nil {
@@ -179,7 +182,8 @@ func ExtractNumFromKubemartConfigTemplate(template string) (int, error) {
 }
 
 // ExtractKubemartConfigTemplate takes Kubemart config template e.g. "https://KUBEMART:MASTER_IP:6443"
-// and returns just "KUBEMART:MASTER_IP". Examples: https://rubular.com/r/egFowm7E0S4Esg.
+// and returns just "KUBEMART:MASTER_IP".
+// Examples: https://rubular.com/r/egFowm7E0S4Esg.
 func ExtractKubemartConfigTemplate(template string) (string, error) {
 	r, err := regexp.Compile(`KUBEMART:[A-Z_0-9()]+`)
 	if err != nil {
@@ -188,7 +192,7 @@ func ExtractKubemartConfigTemplate(template string) (string, error) {
 
 	matched := r.FindString(template)
 	if matched == "" {
-		return "", fmt.Errorf("Matched template is empty")
+		return "", fmt.Errorf("matched template is empty")
 	}
 
 	return matched, nil
@@ -199,8 +203,9 @@ func GetBase64String(input string) string {
 	return base64.URLEncoding.EncodeToString([]byte(input))
 }
 
-// GetAppPlanVariableName ...
-// Look at "minio" app for example.
+// GetAppPlanVariableName will return the app's PVC plan variable name (string).
+// For example, https://github.com/civo/kubernetes-marketplace/blob/db0f8d/minio/manifest.yaml#L20
+// will return "PV_SIZE_GB".
 func GetAppPlanVariableName(appName string) (string, error) {
 	manifest, err := GetAppManifest(appName)
 	if err != nil {
@@ -220,8 +225,8 @@ func GetAppPlanVariableName(appName string) (string, error) {
 	return planVariableNames[0], nil
 }
 
-// SanitizeDependencyName ...
-// https://rubular.com/r/5ibwrOnew3vKpf
+// SanitizeDependencyName returns only the 'appname' (string) from 'appname:sizeGB' string.
+// Examples: https://rubular.com/r/5ibwrOnew3vKpf.
 func SanitizeDependencyName(lowerCasedInput string) (string, error) {
 	emptyStr := ""
 	r, err := regexp.Compile(`^[a-z-0-9]*`)
@@ -231,7 +236,7 @@ func SanitizeDependencyName(lowerCasedInput string) (string, error) {
 
 	cleaned := r.FindString(lowerCasedInput)
 	if cleaned == emptyStr {
-		return emptyStr, fmt.Errorf("Dependency name is empty")
+		return emptyStr, fmt.Errorf("dependency name is empty")
 	}
 
 	return cleaned, nil
@@ -270,7 +275,7 @@ func IsStrSliceContains(slc *[]string, element string) bool {
 	return false
 }
 
-// GetAppDependencies ...
+// GetAppDependencies returns all app's direct dependencies
 func GetAppDependencies(appName string) ([]string, error) {
 	deps := []string{}
 	manifest, err := GetAppManifest(appName)
@@ -293,6 +298,7 @@ func GetAppDependencies(appName string) ([]string, error) {
 
 // ExtractPlanIntFromPlanStr takes plan string i.e. "5Gi" and return 5 (int).
 // If something goes wrong, it will return -1 (int).
+// Examples: https://rubular.com/r/TJEKzuZJrNaSuV.
 func ExtractPlanIntFromPlanStr(input string) (output int) {
 	r, err := regexp.Compile(`[0-9]+`)
 	if err != nil {
@@ -340,12 +346,13 @@ func GetAppPlans(appName string) ([]int, error) {
 	return plans, nil
 }
 
-// GetSmallestAppPlan take sorted plans slice e.g. [5,10,20] and return 5 (int)
+// GetSmallestAppPlan take sorted plans slice e.g. [5,10,20] and return
+// the smallest one e.g. 5 (int)
 func GetSmallestAppPlan(sortedPlans []int) int {
 	return sortedPlans[0]
 }
 
-// GetNamespaceFromAppManifest ...
+// GetNamespaceFromAppManifest returns the app's namespace from the app's manifest.yaml file
 func GetNamespaceFromAppManifest(appName string) (string, error) {
 	manifest, err := GetAppManifest(appName)
 	if err != nil {
@@ -356,20 +363,20 @@ func GetNamespaceFromAppManifest(appName string) (string, error) {
 	return ns, nil
 }
 
-// ContainsString ...
-func ContainsString(slice []string, s string) bool {
+// ContainsString returns 'true' if the slice contains the lookupString
+func ContainsString(slice []string, lookupString string) bool {
 	for _, item := range slice {
-		if item == s {
+		if item == lookupString {
 			return true
 		}
 	}
 	return false
 }
 
-// RemoveString ...
-func RemoveString(slice []string, s string) (result []string) {
+// RemoveString returns a new string slice without toRemove string
+func RemoveString(slice []string, toRemove string) (result []string) {
 	for _, item := range slice {
-		if item == s {
+		if item == toRemove {
 			continue
 		}
 		result = append(result, item)

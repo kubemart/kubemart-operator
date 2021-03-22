@@ -53,7 +53,7 @@ type JobWatcherReconciler struct {
 // +kubebuilder:rbac:groups=kubemart.civo.com,resources=jobwatchers,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=kubemart.civo.com,resources=jobwatchers/status,verbs=get;update;patch
 
-// Reconcile is called either when one of our CRDs change
+// Reconcile is called either when one of our CRDs changed
 // or if the returned ctrl.Result isn’t empty (or an error is returned)
 func (r *JobWatcherReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
@@ -83,6 +83,7 @@ func (r *JobWatcherReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	return ctrl.Result{}, nil // stop reconcile
 }
 
+// checkJob will check for Job's conditions and trigger status update for App
 func (r *JobWatcherReconciler) checkJob(ctx context.Context, watcher *batchv1alpha1.JobWatcher) error {
 	log := r.Log.WithValues("JobWatcher", watcher.Namespace+"/"+watcher.Name)
 
@@ -112,6 +113,8 @@ func (r *JobWatcherReconciler) checkJob(ctx context.Context, watcher *batchv1alp
 	return nil
 }
 
+// updateAppAndWatcherStatus will update App's status when the launcher Job has completed
+// launching the kubemart-daemon pod (to install the actual app). It will also update JobWatcher status.
 func (r *JobWatcherReconciler) updateAppAndWatcherStatus(jobStatus string, watcher *batchv1alpha1.JobWatcher) error {
 	log := r.Log.WithValues("JobWatcher", watcher.Namespace+"/"+watcher.Name)
 	ctx := context.Background()

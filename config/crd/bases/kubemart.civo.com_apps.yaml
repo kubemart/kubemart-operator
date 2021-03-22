@@ -48,29 +48,45 @@ spec:
             description: AppSpec defines the desired state of App
             properties:
               action:
+                description: The action e.g. 'install' or 'update'
+                enum:
+                - install
+                - update
                 type: string
               name:
+                description: The app name e.g. 'wordpress'
                 type: string
               plan:
+                description: The PVC size of the app (only for certain apps)
+                minimum: 1
                 type: integer
             type: object
           status:
             description: AppStatus defines the observed state of App
             properties:
               configurations:
+                description: All App's configurations. See docs for 'Configuration'
+                  for more detail.
                 items:
                   description: Configuration defines the app's configuration. For
                     example, "mariadb" app will have "MYSQL_ROOT_PASSWORD" configuration.
                   properties:
                     key:
+                      description: The key e.g. 'MYSQL_ROOT_PASSWORD'
                       type: string
                     value:
+                      description: The value e.g. 'email@example.com'
                       type: string
                     value_is_base64:
+                      description: If the value was generated using 'KUBEMART:ALPHANUMERIC'
+                        or 'KUBEMART:WORDS', this field will be 'true'. Default to
+                        'false'.
                       type: boolean
                   type: object
                 type: array
               installed_version:
+                description: The installed version, retrieved from kubernetes-marketplace/app/manifest.yaml
+                  file
                 type: string
               jobs_executed:
                 additionalProperties:
@@ -78,26 +94,39 @@ spec:
                     under an App
                   properties:
                     ended_at:
+                      description: 'When the Job ends. Using pointer as a temp hack
+                        due to this issue: https://github.com/kubernetes/kubernetes/issues/86811'
                       format: date-time
                       type: string
                     job_status:
+                      description: The last status of the Job e.g. installation_started,
+                        installation_finished, installation_failed
                       type: string
                     started_at:
-                      description: 'Using pointer as a temp hack due to this issue:
-                        https://github.com/kubernetes/kubernetes/issues/86811'
+                      description: 'When the Job starts. Using pointer as a temp hack
+                        due to this issue: https://github.com/kubernetes/kubernetes/issues/86811'
                       format: date-time
                       type: string
                   required:
                   - job_status
                   type: object
+                description: Map of all Jobs that were executed for this App. See
+                  docs for 'JobInfo' for more detail.
                 type: object
               last_job_executed:
+                description: The last Job's name
                 type: string
               last_status:
+                description: The last Job's status
                 type: string
               new_update_available:
+                description: Will return 'true' if installed app version doesn't match
+                  with the latest version from kubernetes-marketplace repository.
+                  Default to 'false'.
                 type: boolean
               new_update_version:
+                description: Will return the latest version from kubernetes-marketplace
+                  repository
                 type: string
             type: object
         type: object

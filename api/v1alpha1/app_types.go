@@ -28,27 +28,48 @@ type AppSpec struct {
 	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	Name   string `json:"name,omitempty"` // app name i.e. wordpress
+	// The app name e.g. 'wordpress'
+	// +kubebuilder:validation:Required
+	Name string `json:"name,omitempty"`
+
+	// The action e.g. 'install' or 'update'
+	// +kubebuilder:validation:Required
+	// +kubebuilder:validation:Enum=install;update
 	Action string `json:"action,omitempty"`
-	Plan   int    `json:"plan,omitempty"`
+
+	// The PVC size of the app (only for certain apps)
+	// +kubebuilder:validation:Optional
+	// +kubebuilder:validation:Minimum=1
+	Plan int `json:"plan,omitempty"`
 }
 
 // JobInfo contains information about each Job we launched under an App
 type JobInfo struct {
+	// The last status of the Job e.g.
+	// installation_started, installation_finished, installation_failed
 	JobStatus string `json:"job_status"`
 
-	// Using pointer as a temp hack due to this issue:
+	// When the Job starts. Using pointer as a temp hack due to this issue:
 	// https://github.com/kubernetes/kubernetes/issues/86811
 	StartedAt *metav1.Time `json:"started_at,omitempty"`
-	EndedAt   *metav1.Time `json:"ended_at,omitempty"`
+
+	// When the Job ends. Using pointer as a temp hack due to this issue:
+	// https://github.com/kubernetes/kubernetes/issues/86811
+	EndedAt *metav1.Time `json:"ended_at,omitempty"`
 }
 
 // Configuration defines the app's configuration.
 // For example, "mariadb" app will have "MYSQL_ROOT_PASSWORD" configuration.
 type Configuration struct {
-	Key           string `json:"key,omitempty"`
-	Value         string `json:"value,omitempty"`
-	ValueIsBase64 bool   `json:"value_is_base64,omitempty"`
+	// The key e.g. 'MYSQL_ROOT_PASSWORD'
+	Key string `json:"key,omitempty"`
+
+	// The value e.g. 'email@example.com'
+	Value string `json:"value,omitempty"`
+
+	// If the value was generated using 'KUBEMART:ALPHANUMERIC' or
+	// 'KUBEMART:WORDS', this field will be 'true'. Default to 'false'.
+	ValueIsBase64 bool `json:"value_is_base64,omitempty"`
 }
 
 // AppStatus defines the observed state of App
@@ -56,13 +77,30 @@ type AppStatus struct {
 	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
 	// Important: Run "make" to regenerate code after modifying this file
 
-	InstalledVersion   string             `json:"installed_version,omitempty"`
-	LastStatus         string             `json:"last_status,omitempty"`
-	LastJobExecuted    string             `json:"last_job_executed,omitempty"`
-	JobsExecuted       map[string]JobInfo `json:"jobs_executed,omitempty"`
-	Configurations     []Configuration    `json:"configurations,omitempty"`
-	NewUpdateAvailable bool               `json:"new_update_available,omitempty"`
-	NewUpdateVersion   string             `json:"new_update_version,omitempty"`
+	// The installed version, retrieved from kubernetes-marketplace/app/manifest.yaml file
+	InstalledVersion string `json:"installed_version,omitempty"`
+
+	// The last Job's status
+	LastStatus string `json:"last_status,omitempty"`
+
+	// The last Job's name
+	LastJobExecuted string `json:"last_job_executed,omitempty"`
+
+	// Map of all Jobs that were executed for this App.
+	// See docs for 'JobInfo' for more detail.
+	JobsExecuted map[string]JobInfo `json:"jobs_executed,omitempty"`
+
+	// All App's configurations.
+	// See docs for 'Configuration' for more detail.
+	Configurations []Configuration `json:"configurations,omitempty"`
+
+	// Will return 'true' if installed app version doesn't match with
+	// the latest version from kubernetes-marketplace repository.
+	// Default to 'false'.
+	NewUpdateAvailable bool `json:"new_update_available,omitempty"`
+
+	// Will return the latest version from kubernetes-marketplace repository
+	NewUpdateVersion string `json:"new_update_version,omitempty"`
 }
 
 // +kubebuilder:object:root=true

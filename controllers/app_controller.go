@@ -71,7 +71,7 @@ type KubemartConfigMap struct {
 	MasterIP     string
 }
 
-// Reconcile is called either when one of our CRDs change
+// Reconcile is called either when one of our CRDs changed
 // or if the returned ctrl.Result isn’t empty (or an error is returned)
 func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	ctx := context.Background()
@@ -500,7 +500,8 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	return ctrl.Result{}, nil // stop reconcile
 }
 
-// IsConfigurationExists ...
+// IsConfigurationExists returns 'true' if the App's configurations contain
+// the lookup key (configKey)
 func (r *AppReconciler) IsConfigurationExists(app *appv1alpha1.App, configKey string) bool {
 	for _, config := range app.Status.Configurations {
 		if configKey == config.Key {
@@ -511,7 +512,8 @@ func (r *AppReconciler) IsConfigurationExists(app *appv1alpha1.App, configKey st
 	return false
 }
 
-// WatchForNewUpdate ...
+// WatchForNewUpdate will run in Go routine. Each installed App will have an update
+// watcher running in Go routine to periodically check if the installed app is latest or not
 func (r *AppReconciler) WatchForNewUpdate(appInstance *appv1alpha1.App) {
 	logger := r.Log
 	appName := appInstance.ObjectMeta.Name
@@ -571,7 +573,8 @@ func (r *AppReconciler) WatchForNewUpdate(appInstance *appv1alpha1.App) {
 	}
 }
 
-// DeleteUpdateWatcher ...
+// DeleteUpdateWatcher will deregister the update watcher by deleting the watcher
+// from the watchers list
 func (r *AppReconciler) DeleteUpdateWatcher(app *appv1alpha1.App) error {
 	logger := r.Log
 	appName := app.ObjectMeta.Name
@@ -594,7 +597,9 @@ func (r *AppReconciler) DeleteUpdateWatcher(app *appv1alpha1.App) error {
 	return nil
 }
 
-// ProcessAppNamespaceDeletion ...
+// ProcessAppNamespaceDeletion will run after user deletes the App and before the App's
+// finalizer get removed. It will delete the app's namespace - which ideally will delete
+// all the app's Kubernetes resources.
 func (r *AppReconciler) ProcessAppNamespaceDeletion(app *appv1alpha1.App) error {
 	appName := app.ObjectMeta.Name
 	logger := r.Log.WithValues("app", appName)
@@ -667,7 +672,7 @@ func (r *AppReconciler) ProcessAppNamespaceDeletion(app *appv1alpha1.App) error 
 	return nil
 }
 
-// GetApps ...
+// GetApps will return all created Apps in form of AppList object
 func (r *AppReconciler) GetApps() (*appv1alpha1.AppList, error) {
 	apps := &appv1alpha1.AppList{}
 	err := r.List(context.Background(), apps, &client.ListOptions{})
@@ -678,7 +683,8 @@ func (r *AppReconciler) GetApps() (*appv1alpha1.AppList, error) {
 	return apps, nil
 }
 
-// IsAppAlreadyCreated ...
+// IsAppAlreadyCreated will return 'true' if the lookup app (appName)
+// is already created. Default to 'false'.
 func (r *AppReconciler) IsAppAlreadyCreated(appName string) bool {
 	apps, err := r.GetApps()
 	if err != nil {
@@ -694,7 +700,8 @@ func (r *AppReconciler) IsAppAlreadyCreated(appName string) bool {
 	return false
 }
 
-// GetInstalledAppNamesMap ...
+// GetInstalledAppNamesMap will return all Apps that have
+// 'installation_finished' status in form of map
 func (r *AppReconciler) GetInstalledAppNamesMap() (map[string]bool, error) {
 	installedAppsMap := make(map[string]bool)
 
@@ -732,7 +739,8 @@ func (r *AppReconciler) GetKubemartConfigMap() (*KubemartConfigMap, error) {
 	return bcm, nil
 }
 
-// IsNamespaceExist ...
+// IsNamespaceExist will return 'true' if the lookup namespace is found.
+// Default to 'false'.
 func (r *AppReconciler) IsNamespaceExist(namespace string) (bool, error) {
 	ns := &v1.Namespace{}
 	err := r.Client.Get(context.Background(), types.NamespacedName{
@@ -750,7 +758,7 @@ func (r *AppReconciler) IsNamespaceExist(namespace string) (bool, error) {
 	return true, nil
 }
 
-// GetNamespace ...
+// GetNamespace will search a namespace by name (string) and return Namespace object
 func (r *AppReconciler) GetNamespace(namespace string) (*v1.Namespace, error) {
 	ns := &v1.Namespace{}
 	err := r.Client.Get(context.Background(), types.NamespacedName{
@@ -764,14 +772,15 @@ func (r *AppReconciler) GetNamespace(namespace string) (*v1.Namespace, error) {
 	return ns, nil
 }
 
-// DeleteNamespace ...
+// DeleteNamespace will delete namespace by name (string)
 func (r *AppReconciler) DeleteNamespace(namespace string) error {
 	ns, _ := r.GetNamespace(namespace)
 	err := r.Client.Delete(context.Background(), ns, &client.DeleteOptions{})
 	return err
 }
 
-// newJobPod is the pod definition that contains helm, kubectl, curl, git & marketplace code
+// newJobPod is the pod definition of the kubemart-daemon which contains
+// helm, kubectl, curl, git & marketplace code. This daemon pod is the app installer pod.
 func newJobPod(cr *appv1alpha1.App) *batchv1.Job {
 	// auto delete the Job (and its Pod) 24 hours after it finishes
 	// https://kubernetes.io/docs/concepts/workloads/controllers/job/#ttl-mechanism-for-finished-jobs
