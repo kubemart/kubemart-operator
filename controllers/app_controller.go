@@ -113,6 +113,23 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 
 		if utils.ContainsString(appInstance.ObjectMeta.Finalizers, finalizerName) {
+			// execute app's uninstall.sh bash script - if the file is present
+			uninstallJob := newJobPod(appInstance, true)
+			// set App instance as the owner of the Job
+			if err := controllerutil.SetControllerReference(appInstance, uninstallJob, r.Scheme); err != nil {
+				// Restart the Reconcile
+				return reconcile.Result{}, err
+			}
+
+			// create the Job
+			err = r.Create(context.Background(), uninstallJob)
+			if err != nil {
+				logger.Error(err, "Failed to create uninstall job", "job name", uninstallJob.Name)
+				// restart the Reconcile
+				return reconcile.Result{}, err
+			}
+			logger.Info("New uninstall Job was launched successfully", "job name", uninstallJob.Name)
+
 			// our finalizer is present, so lets delete the app's namespace
 			err := r.ProcessAppNamespaceDeletion(appInstance)
 			if err != nil {
@@ -386,7 +403,7 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			}
 		}
 
-		job := newJobPod(appInstance)
+		job := newJobPod(appInstance, false)
 		// Set App instance as the owner of the Job
 		if err := controllerutil.SetControllerReference(appInstance, job, r.Scheme); err != nil {
 			// Restart the Reconcile
@@ -781,7 +798,12 @@ func (r *AppReconciler) DeleteNamespace(namespace string) error {
 
 // newJobPod is the pod definition of the kubemart-daemon which contains
 // helm, kubectl, curl, git & marketplace code. This daemon pod is the app installer pod.
-func newJobPod(cr *appv1alpha1.App) *batchv1.Job {
+func newJobPod(cr *appv1alpha1.App, isUninstall bool) *batchv1.Job {
+	daemonScriptFile := "./install.sh"
+	if isUninstall {
+		daemonScriptFile = "./uninstall.sh"
+	}
+
 	// auto delete the Job (and its Pod) 24 hours after it finishes
 	// https://kubernetes.io/docs/concepts/workloads/controllers/job/#ttl-mechanism-for-finished-jobs
 	secondsInADay := int32(86400)
@@ -814,7 +836,7 @@ func newJobPod(cr *appv1alpha1.App) *batchv1.Job {
 								// Note:
 								// The `--namespace` is the namespace where the App custom resource is running.
 								// Not where the actual workload i.e. wordpress is running.
-								fmt.Sprintf("./main --app-name %s --namespace kubemart-system && cd scripts && ./install.sh", cr.Spec.Name),
+								fmt.Sprintf("./main --app-name %s --namespace kubemart-system && cd scripts && %s", cr.Spec.Name, daemonScriptFile),
 							},
 						},
 					},

@@ -1,0 +1,8 @@
+apiVersion: kubemart.civo.com/v1alpha1
+kind: App
+metadata:
+  name: cert-manager
+  namespace: kubemart-system
+spec:
+  name: cert-manager
+  action: install
