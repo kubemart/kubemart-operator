@@ -129,6 +129,31 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				return reconcile.Result{}, err
 			}
 			logger.Info("New uninstall Job was launched successfully", "job name", uninstallJob.Name)
+			logger.Info("Waiting for uninstall Job to complete", "job name", uninstallJob.Name)
+
+			// wait until uninstall.sh job completes
+			currentTry := 0
+			maxTries := 60
+			for {
+				currentTry++
+				if currentTry > maxTries {
+					logger.Info("Max tries reached when checking uninstall.sh job status", "job name", uninstallJob.Name)
+					break
+				}
+
+				uj := &batchv1.Job{}
+				_ = r.Get(context.Background(), types.NamespacedName{
+					Name:      uninstallJob.Name,
+					Namespace: uninstallJob.Namespace,
+				}, uj)
+
+				if !uj.Status.CompletionTime.IsZero() {
+					logger.Info("Job has completed, we are good to delete the app's namespace", "job name", uninstallJob.Name)
+					break
+				}
+
+				time.Sleep(1 * time.Second)
+			}
 
 			// our finalizer is present, so lets delete the app's namespace
 			err := r.ProcessAppNamespaceDeletion(appInstance)
