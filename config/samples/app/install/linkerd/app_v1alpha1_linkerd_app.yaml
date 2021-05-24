@@ -1,0 +1,9 @@
+apiVersion: kubemart.civo.com/v1alpha1
+kind: App
+metadata:
+  name: linkerd
+  namespace: kubemart-system
+spec:
+  name: linkerd
+  action: install
+  plan: linkerdviz
