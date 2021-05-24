@@ -375,7 +375,14 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			}
 
 			if len(depthDependencyPlans) > 0 {
-				dApp.Spec.Plan = utils.GetSmallestAppPlan(depthDependencyPlans)
+				smallestPlanLabel := utils.GetSmallestAppPlan(depthDependencyPlans)
+				smallestPlanValue, err := utils.GetAppPlanValueByLabel(depthDependency, smallestPlanLabel)
+				if err != nil {
+					logger.Error(err, "Failed to get the smallest plan value for app", "app", depthDependency)
+					return reconcile.Result{}, err // restart reconcile
+				}
+
+				dApp.Spec.Plan = smallestPlanValue
 			}
 
 			err = r.Create(context.Background(), dApp, &client.CreateOptions{})

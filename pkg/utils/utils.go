@@ -224,6 +224,28 @@ func GetAppPlanVariableName(appName string) (string, error) {
 	return planVariableNames[0], nil
 }
 
+func GetAppPlanValueByLabel(appName, planLabel string) (string, error) {
+	planValue := ""
+
+	manifest, err := GetAppManifest(appName)
+	if err != nil {
+		return planValue, err
+	}
+
+	for _, plan := range manifest.Plans {
+		if plan.Label == planLabel {
+			confKey, err := GetAppPlanVariableName(appName)
+			if err != nil {
+				return planValue, err
+			}
+
+			planValue = plan.Configuration[confKey].Value
+		}
+	}
+
+	return planValue, nil
+}
+
 // SanitizeDependencyName returns only the 'appname' (string) from 'appname:sizeGB' string.
 // Examples: https://rubular.com/r/5ibwrOnew3vKpf.
 func SanitizeDependencyName(lowerCasedInput string) (string, error) {
