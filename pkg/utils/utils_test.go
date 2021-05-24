@@ -394,11 +394,12 @@ func TestGetAppPlans2(t *testing.T) {
 }
 
 func TestGetSmallestAppPlan(t *testing.T) {
-	plans := []int{5, 10, 20}
+	plans := []string{"5GB", "10GB", "20GB"}
+	expected := "5GB"
 	actual := GetSmallestAppPlan(plans)
-	expected := 5
+
 	if expected != actual {
-		t.Errorf("Expected %d but actual is %d", expected, actual)
+		t.Errorf("Expecting %+v but got %+v\n", expected, actual)
 	}
 }
 

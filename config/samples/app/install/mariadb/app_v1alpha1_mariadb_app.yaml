@@ -6,4 +6,4 @@ metadata:
 spec:
   name: mariadb
   action: install
-  plan: 5
+  plan: 5Gi

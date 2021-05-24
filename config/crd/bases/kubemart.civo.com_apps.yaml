@@ -57,9 +57,8 @@ spec:
                 description: The app name e.g. 'wordpress'
                 type: string
               plan:
-                description: The PVC size of the app (only for certain apps)
-                minimum: 1
-                type: integer
+                description: The plan of the app (only for certain apps)
+                type: string
             type: object
           status:
             description: AppStatus defines the observed state of App

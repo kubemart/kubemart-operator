@@ -37,10 +37,9 @@ type AppSpec struct {
 	// +kubebuilder:validation:Enum=install;update
 	Action string `json:"action,omitempty"`
 
-	// The PVC size of the app (only for certain apps)
+	// The plan of the app (only for certain apps)
 	// +kubebuilder:validation:Optional
-	// +kubebuilder:validation:Minimum=1
-	Plan int `json:"plan,omitempty"`
+	Plan string `json:"plan,omitempty"`
 }
 
 // JobInfo contains information about each Job we launched under an App

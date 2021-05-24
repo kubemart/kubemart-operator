@@ -5,6 +5,7 @@ import (
 	"time"
 
 	v1alpha1 "github.com/kubemart/kubemart-operator/api/v1alpha1"
+	"github.com/kubemart/kubemart-operator/pkg/utils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	v1 "k8s.io/api/core/v1"
@@ -95,9 +96,10 @@ var _ = Describe("App controller\n", func() {
 	Context("When creating a complex (with dependencies) App", func() {
 		ctx := context.Background()
 		appName := "wordpress"
-		planSize := 10 // GiB
+		planSize := "10Gi"
+		planSizeInt := utils.ExtractPlanIntFromPlanStr(planSize)
 		oneGibInBytes := 1073741824
-		planSizeInBytes := planSize * oneGibInBytes
+		planSizeInBytes := planSizeInt * oneGibInBytes
 
 		It("Should create the App CR", func() {
 			app := &v1alpha1.App{

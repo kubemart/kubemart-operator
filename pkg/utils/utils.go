@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"reflect"
 	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 
@@ -318,38 +317,26 @@ func ExtractPlanIntFromPlanStr(input string) (output int) {
 	return output
 }
 
-// GetAppPlans returns sorted app plans e.g. [5,10,20]
-func GetAppPlans(appName string) ([]int, error) {
-	plans := []int{}
+// GetAppPlans returns app plan labels e.g. ["5GB", "10GB", "20GB"]
+func GetAppPlans(appName string) ([]string, error) {
+	plans := []string{}
 	manifest, err := GetAppManifest(appName)
 	if err != nil {
 		return plans, err
 	}
 
 	for _, plan := range manifest.Plans {
-		conf := plan.Configuration
-		keys := reflect.ValueOf(conf).MapKeys()
-		strKeys := make([]string, len(keys))
-		for i := 0; i < len(keys); i++ {
-			strKeys[i] = keys[i].String()
-		}
-
-		for _, key := range strKeys {
-			p := ExtractPlanIntFromPlanStr(conf[key].Value)
-			if p > 0 {
-				plans = append(plans, p)
-			}
-		}
+		label := plan.Label
+		plans = append(plans, label)
 	}
 
-	sort.Ints(plans)
 	return plans, nil
 }
 
-// GetSmallestAppPlan take sorted plans slice e.g. [5,10,20] and return
-// the smallest one e.g. 5 (int)
-func GetSmallestAppPlan(sortedPlans []int) int {
-	return sortedPlans[0]
+// GetSmallestAppPlan take plan labels slice e.g. ["5GB", "10GB", "20GB"]
+// and return the first one e.g. 5GB (string)
+func GetSmallestAppPlan(plans []string) string {
+	return plans[0]
 }
 
 // GetNamespaceFromAppManifest returns the app's namespace from the app's manifest.yaml file
