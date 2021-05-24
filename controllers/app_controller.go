@@ -303,7 +303,7 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 		// app plan
 		appPlan := appInstance.Spec.Plan
-		if appPlan > 0 {
+		if appPlan != "" {
 			planVariableName, err := utils.GetAppPlanVariableName(appInstance.Spec.Name)
 			if err != nil {
 				return reconcile.Result{}, err // restart reconcile
@@ -313,7 +313,7 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			if !planExists {
 				configs = append(configs, appv1alpha1.Configuration{
 					Key:   planVariableName,
-					Value: fmt.Sprintf("%dGi", appPlan),
+					Value: appPlan,
 				})
 			}
 		}
@@ -375,7 +375,14 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			}
 
 			if len(depthDependencyPlans) > 0 {
-				dApp.Spec.Plan = utils.GetSmallestAppPlan(depthDependencyPlans)
+				smallestPlanLabel := utils.GetSmallestAppPlan(depthDependencyPlans)
+				smallestPlanValue, err := utils.GetAppPlanValueByLabel(depthDependency, smallestPlanLabel)
+				if err != nil {
+					logger.Error(err, "Failed to get the smallest plan value for app", "app", depthDependency)
+					return reconcile.Result{}, err // restart reconcile
+				}
+
+				dApp.Spec.Plan = smallestPlanValue
 			}
 
 			err = r.Create(context.Background(), dApp, &client.CreateOptions{})

@@ -379,7 +379,7 @@ func TestExtractPlanIntFromPlanStr9(t *testing.T) {
 
 func TestGetAppPlans1(t *testing.T) {
 	actual, _ := GetAppPlans("mariadb")
-	expected := []int{5, 10, 20}
+	expected := []string{"5GB", "10GB", "20GB"}
 	if !elementsMatch(expected, actual) {
 		t.Errorf("Expected %v but got %v", expected, actual)
 	}
@@ -387,18 +387,19 @@ func TestGetAppPlans1(t *testing.T) {
 
 func TestGetAppPlans2(t *testing.T) {
 	actual, _ := GetAppPlans("cert-manager")
-	expected := []int{}
+	expected := []string{}
 	if !elementsMatch(expected, actual) {
 		t.Errorf("Expected %v but got %v", expected, actual)
 	}
 }
 
 func TestGetSmallestAppPlan(t *testing.T) {
-	plans := []int{5, 10, 20}
+	plans := []string{"5GB", "10GB", "20GB"}
+	expected := "5GB"
 	actual := GetSmallestAppPlan(plans)
-	expected := 5
+
 	if expected != actual {
-		t.Errorf("Expected %d but actual is %d", expected, actual)
+		t.Errorf("Expecting %+v but got %+v\n", expected, actual)
 	}
 }
 
