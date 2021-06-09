@@ -119,20 +119,20 @@ jobs:
 
       - name: Install Operator SDK CLI
         run: |
-          wget https://github.com/operator-framework/operator-sdk/releases/download/v1.4.2/operator-sdk_linux_amd64 -O /usr/local/bin/operator-sdk
-          chmod +x /usr/local/bin/operator-sdk
+          wget https://github.com/operator-framework/operator-sdk/releases/download/v1.4.2/operator-sdk_linux_amd64 -O $GOBIN/operator-sdk
+          chmod +x $GOBIN/operator-sdk
           operator-sdk version
 
       - name: Install OPM CLI
         run: |
-          wget https://github.com/operator-framework/operator-registry/releases/download/v1.17.2/linux-amd64-opm -O /usr/local/bin/opm
-          chmod +x /usr/local/bin/opm
+          wget https://github.com/operator-framework/operator-registry/releases/download/v1.17.2/linux-amd64-opm -O $GOBIN/opm
+          chmod +x $GOBIN/opm
           opm version
       
       - name: Install yq CLI
         run: |
-          wget https://github.com/mikefarah/yq/releases/download/v4.9.4/yq_linux_amd64 -O /usr/local/bin/yq
-          chmod +x /usr/local/bin/yq
+          wget https://github.com/mikefarah/yq/releases/download/v4.9.4/yq_linux_amd64 -O $GOBIN/yq
+          chmod +x $GOBIN/yq
           yq --version
 
       - name: Get current Git tag without leading 'v'
