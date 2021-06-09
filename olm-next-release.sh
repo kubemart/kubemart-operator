@@ -5,7 +5,7 @@
 
 # IMPORTANT
 # Change variable below
-export NEXT_VERSION=0.0.2
+export NEXT_VERSION=0.0.54
 
 export DOCKER_USERNAME=kubemart
 export OPERATOR_IMG_NAME=kubemart-operator
