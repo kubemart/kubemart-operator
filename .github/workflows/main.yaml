@@ -46,6 +46,7 @@ jobs:
     env:
       OPERATOR_IMG_NAME: kubemart-operator
       BUNDLE_IMG_NAME: kubemart-olm-bundle
+      INDEX_IMG_NAME: kubemart-olm-index
       BUNDLE_ZIP_FILE: olm-bundle.zip
     steps:
       - name: Checkout kubemart-operator repo
