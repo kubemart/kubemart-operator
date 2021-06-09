@@ -46,7 +46,7 @@ jobs:
     env:
       OPERATOR_IMG_NAME: kubemart-operator
       BUNDLE_IMG_NAME: kubemart-olm-bundle
-      INDEX_IMG_NAME: kubemart-olm-index
+      DOCKER_USERNAME: kubemart
       BUNDLE_ZIP_FILE: olm-bundle.zip
     steps:
       - name: Checkout kubemart-operator repo
@@ -76,7 +76,7 @@ jobs:
 
       - name: Login to Docker
         env:
-          DOCKER_USERNAME: ${{ secrets.DH_USER }}
+          DOCKER_USERNAME: ${{env.DOCKER_USERNAME}}
           DOCKER_PASSWORD: ${{ secrets.DH_TOKEN }}
         run: |
           echo "${DOCKER_PASSWORD}" | docker login --username "${DOCKER_USERNAME}" --password-stdin
@@ -148,6 +148,7 @@ jobs:
       
       - name: Release OPM Bundle & Index
         run: |
+          set -x
           CURRENT_VERSION=$(yq eval '.spec.version' $CSV_FILE_PATH)
           echo "Current version : $CURRENT_VERSION"
           echo "Next version    : $NEXT_VERSION"
@@ -163,7 +164,7 @@ jobs:
           docker push $INDEX_IMG
         env:
           NEXT_VERSION: ${{steps.semver_no_v.outputs.non-prefixed}}
-          DOCKER_USERNAME: ${{ secrets.DH_USER }}
+          DOCKER_USERNAME: ${{env.DOCKER_USERNAME}}
           OPERATOR_IMG_NAME: ${{env.OPERATOR_IMG_NAME}}
           BUNDLE_IMG_NAME: ${{env.BUNDLE_IMG_NAME}}
           INDEX_IMG_NAME: ${{env.INDEX_IMG_NAME}}
