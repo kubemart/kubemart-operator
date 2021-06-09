@@ -43,7 +43,11 @@ jobs:
     # run-tests job must complete successfully before this job will run
     needs: run-tests
     runs-on: ubuntu-20.04
-
+    env:
+      OPERATOR_IMG_NAME: kubemart-operator
+      BUNDLE_IMG_NAME: kubemart-olm-bundle
+      INDEX_IMG_NAME: kubemart-olm-index
+      BUNDLE_ZIP_FILE: olm-bundle.zip
     steps:
       - name: Checkout kubemart-operator repo
         uses: actions/checkout@v2
@@ -112,3 +116,69 @@ jobs:
           file: crd.yaml
           asset_name: kubemart-operator.yaml
           tag: ${{ github.ref }}
+
+      - name: Install Operator SDK CLI
+        run: |
+          wget https://github.com/operator-framework/operator-sdk/releases/download/v1.4.2/operator-sdk_linux_amd64 -O /usr/local/bin/operator-sdk
+          chmod +x /usr/local/bin/operator-sdk
+          operator-sdk version
+
+      - name: Install OPM CLI
+        run: |
+          wget https://github.com/operator-framework/operator-registry/releases/download/v1.17.2/linux-amd64-opm -O /usr/local/bin/opm
+          chmod +x /usr/local/bin/opm
+          opm version
+      
+      - name: Install yq CLI
+        run: |
+          wget https://github.com/mikefarah/yq/releases/download/v4.9.4/yq_linux_amd64 -O /usr/local/bin/yq
+          chmod +x /usr/local/bin/yq
+          yq --version
+
+      - name: Get current Git tag without leading 'v'
+        id: semver_no_v
+        uses: LykkeBusiness/get-semver-from-tag-action@v1.0.2
+        with:
+          tag: ${{steps.tag.outputs.tag}}
+      
+      - name: Release OPM Bundle & Index
+        run: |
+          CURRENT_VERSION=$(yq eval '.spec.version' $CSV_FILE_PATH)
+          echo "Current version : $CURRENT_VERSION"
+          echo "Next version    : $NEXT_VERSION"
+          if [ "$CURRENT_VERSION" == "$NEXT_VERSION" ]; then echo "Error: current and next version are equal"; exit 1; fi
+          OPERATOR_IMG=docker.io/$DOCKER_USERNAME/$OPERATOR_IMG_NAME:v$NEXT_VERSION
+          make bundle IMG=$OPERATOR_IMG VERSION=$NEXT_VERSION
+          yq eval -i '.spec.replaces = "'$OPERATOR_IMG_NAME.v$CURRENT_VERSION'"' $CSV_FILE_PATH
+          BUNDLE_IMG=docker.io/$DOCKER_USERNAME/$BUNDLE_IMG_NAME:v$NEXT_VERSION
+          make bundle-build BUNDLE_IMG=$BUNDLE_IMG
+          make docker-push IMG=$BUNDLE_IMG
+          INDEX_IMG=docker.io/$DOCKER_USERNAME/$INDEX_IMG_NAME:latest
+          opm index add --bundles $BUNDLE_IMG --tag $INDEX_IMG --build-tool docker --from-index $INDEX_IMG
+          docker push $INDEX_IMG
+        env:
+          NEXT_VERSION: ${{steps.semver_no_v.outputs.non-prefixed}}
+          DOCKER_USERNAME: ${{ secrets.DH_USER }}
+          OPERATOR_IMG_NAME: ${{env.OPERATOR_IMG_NAME}}
+          BUNDLE_IMG_NAME: ${{env.BUNDLE_IMG_NAME}}
+          INDEX_IMG_NAME: ${{env.INDEX_IMG_NAME}}
+          CSV_FILE_PATH: bundle/manifests/${{env.OPERATOR_IMG_NAME}}.clusterserviceversion.yaml
+      
+      - name: Zip OLM Bundle folder
+        run: |
+          zip -r ${{env.BUNDLE_ZIP_FILE}} bundle
+      
+      - name: Upload zipped OLM Bundle folder file to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: ${{env.BUNDLE_ZIP_FILE}}
+          asset_name: ${{env.BUNDLE_ZIP_FILE}}
+          tag: ${{ github.ref }}
+
+      - name: Commit OLM Bundle CSV file and manager's Kustomization files
+        uses: stefanzweifel/git-auto-commit-action@v4
+        with:
+          commit_message: "Update OLM Bundle CSV file and manager's Kustomization files"
+          branch: master
+          file_pattern: bundle/manifests/kubemart-operator.clusterserviceversion.yaml config/manager/kustomization.yaml
