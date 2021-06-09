@@ -183,8 +183,11 @@ jobs:
           tag: ${{ github.ref }}
 
       - name: Commit OLM Bundle CSV file and manager's Kustomization files
-        uses: stefanzweifel/git-auto-commit-action@v4
+        uses: test-room-7/action-update-file@v1
         with:
-          commit_message: "Update OLM Bundle CSV file and manager's Kustomization files"
           branch: master
-          file_pattern: bundle/manifests/kubemart-operator.clusterserviceversion.yaml config/manager/kustomization.yaml
+          commit-msg: Update OLM Bundle CSV file and manager's Kustomization files
+          file-path: |
+            bundle/manifests/kubemart-operator.clusterserviceversion.yaml
+            config/manager/kustomization.yaml
+          github-token: ${{ secrets.GITHUB_TOKEN }}
