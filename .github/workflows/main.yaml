@@ -144,7 +144,7 @@ jobs:
         id: semver_no_v
         uses: LykkeBusiness/get-semver-from-tag-action@v1.0.2
         with:
-          tag: ${{steps.tag.outputs.tag}}
+          tag: ${{github.ref}}
       
       - name: Release OPM Bundle & Index
         run: |
