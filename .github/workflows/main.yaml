@@ -118,7 +118,9 @@ jobs:
           tag: ${{ github.ref }}
 
       - name: Update $PATH for CLIs
-        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+        run: |
+          mkdir -p $HOME/.local/bin
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
 
       - name: Install Operator SDK CLI
         run: |
