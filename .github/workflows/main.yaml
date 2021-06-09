@@ -117,22 +117,25 @@ jobs:
           asset_name: kubemart-operator.yaml
           tag: ${{ github.ref }}
 
+      - name: Update $PATH for CLIs
+        run: echo "$HOME/.local/bin" >> $GITHUB_PATH
+
       - name: Install Operator SDK CLI
         run: |
-          wget https://github.com/operator-framework/operator-sdk/releases/download/v1.4.2/operator-sdk_linux_amd64 -O $GOBIN/operator-sdk
-          chmod +x $GOBIN/operator-sdk
+          wget https://github.com/operator-framework/operator-sdk/releases/download/v1.4.2/operator-sdk_linux_amd64 -O $HOME/.local/bin/operator-sdk
+          chmod +x $HOME/.local/bin/operator-sdk
           operator-sdk version
 
       - name: Install OPM CLI
         run: |
-          wget https://github.com/operator-framework/operator-registry/releases/download/v1.17.2/linux-amd64-opm -O $GOBIN/opm
-          chmod +x $GOBIN/opm
+          wget https://github.com/operator-framework/operator-registry/releases/download/v1.17.2/linux-amd64-opm -O $HOME/.local/bin/opm
+          chmod +x $HOME/.local/bin/opm
           opm version
       
       - name: Install yq CLI
         run: |
-          wget https://github.com/mikefarah/yq/releases/download/v4.9.4/yq_linux_amd64 -O $GOBIN/yq
-          chmod +x $GOBIN/yq
+          wget https://github.com/mikefarah/yq/releases/download/v4.9.4/yq_linux_amd64 -O $HOME/.local/bin/yq
+          chmod +x $HOME/.local/bin/yq
           yq --version
 
       - name: Get current Git tag without leading 'v'
