@@ -7,7 +7,7 @@
 # Change variable below
 export NEXT_VERSION=0.0.54
 
-export DOCKER_USERNAME=kubemart
+export DOCKER_NAMESPACE=kubemart
 export OPERATOR_IMG_NAME=kubemart-operator
 export BUNDLE_IMG_NAME=kubemart-olm-bundle
 export INDEX_IMG_NAME=kubemart-olm-index
@@ -18,15 +18,15 @@ echo "Current version : $CURRENT_VERSION"
 echo "Next version    : $NEXT_VERSION"
 if [ "$CURRENT_VERSION" == "$NEXT_VERSION" ]; then echo "Error: current and next version are equal"; exit 1; fi
 
-OPERATOR_IMG=docker.io/$DOCKER_USERNAME/$OPERATOR_IMG_NAME:v$NEXT_VERSION
+OPERATOR_IMG=docker.io/$DOCKER_NAMESPACE/$OPERATOR_IMG_NAME:v$NEXT_VERSION
 make docker-build docker-push IMG=$OPERATOR_IMG
 
 make bundle IMG=$OPERATOR_IMG VERSION=$NEXT_VERSION
 yq4 eval -i '.spec.replaces = "'$OPERATOR_IMG_NAME.v$CURRENT_VERSION'"' $CSV_FILE_PATH
-BUNDLE_IMG=docker.io/$DOCKER_USERNAME/$BUNDLE_IMG_NAME:v$NEXT_VERSION
+BUNDLE_IMG=docker.io/$DOCKER_NAMESPACE/$BUNDLE_IMG_NAME:v$NEXT_VERSION
 make bundle-build BUNDLE_IMG=$BUNDLE_IMG
 make docker-push IMG=$BUNDLE_IMG
 
-INDEX_IMG=docker.io/$DOCKER_USERNAME/$INDEX_IMG_NAME:latest
+INDEX_IMG=docker.io/$DOCKER_NAMESPACE/$INDEX_IMG_NAME:latest
 opm index add --bundles $BUNDLE_IMG --tag $INDEX_IMG --build-tool docker --from-index $INDEX_IMG
 docker push $INDEX_IMG
