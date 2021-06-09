@@ -1,0 +1,53 @@
+apiVersion: operators.coreos.com/v1alpha1
+kind: ClusterServiceVersion
+metadata:
+  annotations:
+    alm-examples: '[]'
+    capabilities: Basic Install
+  name: kubemart-operator.v0.0.0
+  namespace: placeholder
+spec:
+  apiservicedefinitions: {}
+  customresourcedefinitions:
+    owned:
+    - description: App is the Schema for the apps API
+      displayName: App
+      kind: App
+      name: apps.kubemart.civo.com
+      version: v1alpha1
+    - description: JobWatcher is the Schema for the jobwatchers API
+      displayName: Job Watcher
+      kind: JobWatcher
+      name: jobwatchers.kubemart.civo.com
+      version: v1alpha1
+  description: kubemart-operator
+  displayName: kubemart-operator
+  icon:
+  - base64data: ""
+    mediatype: ""
+  install:
+    spec:
+      deployments: null
+    strategy: ""
+  installModes:
+  - supported: true
+    type: OwnNamespace
+  - supported: false
+    type: SingleNamespace
+  - supported: false
+    type: MultiNamespace
+  - supported: false
+    type: AllNamespaces
+  keywords:
+  - kubemart
+  links:
+  - name: Kubemart Operator
+    url: https://kubemart-operator.domain
+  maintainers:
+  - email: zulh@civo.com
+    name: Zulh
+  maturity: alpha
+  provider:
+    name: Civo
+    url: www.civo.com
+  version: 0.0.0

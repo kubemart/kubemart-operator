@@ -1,0 +1,32 @@
+apiVersion: operators.coreos.com/v1
+kind: OperatorGroup
+metadata:
+  name: kubemart-operator
+  namespace: kubemart-system
+spec:
+  targetNamespaces:
+  - kubemart-system
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: CatalogSource
+metadata:
+  name: kubemart-operator
+  namespace: kubemart-system
+spec:
+  image: docker.io/kubemart/kubemart-olm-index:latest
+  sourceType: grpc
+  updateStrategy:
+    registryPoll:
+      interval: 15m
+---
+apiVersion: operators.coreos.com/v1alpha1
+kind: Subscription
+metadata:
+  name: kubemart-operator
+  namespace: kubemart-system
+spec:
+  channel: alpha
+  name: kubemart-operator
+  source: kubemart-operator
+  sourceNamespace: kubemart-system
+  installPlanApproval: Automatic
