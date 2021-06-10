@@ -212,5 +212,5 @@ spec:
   provider:
     name: Civo
     url: www.civo.com
-  version: 0.0.64
+  version: 0.0.63
   replaces: kubemart-operator.v0.0.54
