@@ -2,6 +2,7 @@
 
 export INDEX_IMG=docker.io/kubemart/kubemart-olm-index:latest
 
+docker pull $INDEX_IMG
 INDEX_CONTAINER=$(docker create $INDEX_IMG)
 docker start $INDEX_CONTAINER
 docker cp $INDEX_CONTAINER:/database/index.db .
