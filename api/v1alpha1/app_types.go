@@ -69,6 +69,13 @@ type Configuration struct {
 	// If the value was generated using 'KUBEMART:ALPHANUMERIC' or
 	// 'KUBEMART:WORDS', this field will be 'true'. Default to 'false'.
 	ValueIsBase64 bool `json:"value_is_base64,omitempty"`
+
+	// Return true if the value was customized by "KUBEMART:***" variable.
+	// For example, let's say this is the app manifest:
+	// https://github.com/civo/kubernetes-marketplace/blob/6609b3bbe5857acae17dbf42f0f558feb84843e1/jenkins/manifest.yaml
+	// The "JENKINS_USERNAME" and "JENKINS_PASSWORD" will have this attribute set to true.
+	// But the "VOLUME_SIZE" will be false.
+	IsCustomized bool `json:"is_customized,omitempty"`
 }
 
 // AppStatus defines the observed state of App

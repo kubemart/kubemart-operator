@@ -245,6 +245,7 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 					Key:           configKey,
 					Value:         base64Encoded,
 					ValueIsBase64: true,
+					IsCustomized:  true,
 				})
 			}
 
@@ -261,6 +262,7 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 					Key:           configKey,
 					Value:         base64Encoded,
 					ValueIsBase64: true,
+					IsCustomized:  true,
 				})
 			}
 
@@ -268,8 +270,10 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				clusterName := configMap.ClusterName
 				value := strings.ReplaceAll(configTemplate, justVariableName, clusterName)
 				configs = append(configs, appv1alpha1.Configuration{
-					Key:   configKey,
-					Value: value,
+					Key:           configKey,
+					Value:         value,
+					ValueIsBase64: false,
+					IsCustomized:  true,
 				})
 			}
 
@@ -277,8 +281,10 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				domainName := configMap.DomainName
 				value := strings.ReplaceAll(configTemplate, justVariableName, domainName)
 				configs = append(configs, appv1alpha1.Configuration{
-					Key:   configKey,
-					Value: value,
+					Key:           configKey,
+					Value:         value,
+					ValueIsBase64: false,
+					IsCustomized:  true,
 				})
 			}
 
@@ -286,8 +292,10 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				emailAddress := configMap.EmailAddress
 				value := strings.ReplaceAll(configTemplate, justVariableName, emailAddress)
 				configs = append(configs, appv1alpha1.Configuration{
-					Key:   configKey,
-					Value: value,
+					Key:           configKey,
+					Value:         value,
+					ValueIsBase64: false,
+					IsCustomized:  true,
 				})
 			}
 
@@ -295,8 +303,10 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 				masterIP := configMap.MasterIP
 				value := strings.ReplaceAll(configTemplate, justVariableName, masterIP)
 				configs = append(configs, appv1alpha1.Configuration{
-					Key:   configKey,
-					Value: value,
+					Key:           configKey,
+					Value:         value,
+					ValueIsBase64: false,
+					IsCustomized:  true,
 				})
 			}
 		}
@@ -312,8 +322,10 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			planExists := r.IsConfigurationExists(appInstance, planVariableName)
 			if !planExists {
 				configs = append(configs, appv1alpha1.Configuration{
-					Key:   planVariableName,
-					Value: appPlan,
+					Key:           planVariableName,
+					Value:         appPlan,
+					ValueIsBase64: false,
+					IsCustomized:  false,
 				})
 			}
 		}

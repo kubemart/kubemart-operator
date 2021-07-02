@@ -70,6 +70,13 @@ spec:
                   description: Configuration defines the app's configuration. For
                     example, "mariadb" app will have "MYSQL_ROOT_PASSWORD" configuration.
                   properties:
+                    is_customized:
+                      description: 'Return true if the value was customized by "KUBEMART:***"
+                        variable. For example, let''s say this is the app manifest:
+                        https://github.com/civo/kubernetes-marketplace/blob/6609b3bbe5857acae17dbf42f0f558feb84843e1/jenkins/manifest.yaml
+                        The "JENKINS_USERNAME" and "JENKINS_PASSWORD" will have this
+                        attribute set to true. But the "VOLUME_SIZE" will be false.'
+                      type: boolean
                     key:
                       description: The key e.g. 'MYSQL_ROOT_PASSWORD'
                       type: string
