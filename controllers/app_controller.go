@@ -34,6 +34,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -59,8 +60,9 @@ var updateWatcher = make(map[string]bool)
 // AppReconciler reconciles a App object
 type AppReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log      logr.Logger
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
 }
 
 // KubemartConfigMap is used when reading ConfigMap
@@ -106,6 +108,8 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 	} else {
 		// The object is being deleted
+		r.Recorder.Event(appInstance, "Normal", "UninstallStarted", "App is entering uninstall stage")
+
 		// let's first clear the updateWatcher
 		err := r.DeleteUpdateWatcher(appInstance)
 		if err != nil {
@@ -178,6 +182,8 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// last_status fields before "re-install" the app (with latest version)
 	if action == "update" {
 		logger.Info("Setting up update operation...")
+		r.Recorder.Event(appInstance, "Normal", "UpdateStarted", "App is entering update stage")
+
 		appInstance.Status.InstalledVersion = ""
 		appInstance.Status.LastStatus = ""
 		appInstance.Status.NewUpdateAvailable = false
@@ -202,6 +208,7 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	// For `kubemart install <app_name>`
 	if lastStatus == "" {
 		logger.Info("Entering pre-install stage")
+		r.Recorder.Event(appInstance, "Normal", "PreInstallStarted", "App is entering pre-install stage")
 
 		configMap, err := r.GetKubemartConfigMap()
 		if err != nil {
@@ -344,6 +351,8 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	if lastStatus == "pre_installation_started" {
 		logger.Info("Entering dependency install stage")
+		r.Recorder.Event(appInstance, "Normal", "DependencyInstallStarted", "App is entering dependency install stage")
+
 		installedApps, err := r.GetInstalledAppNamesMap()
 		if err != nil {
 			logger.Error(err, "Failed to get all installed apps")
@@ -424,6 +433,7 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 	if lastStatus == "dependencies_installation_started" {
 		logger.Info("Entering install stage")
+		r.Recorder.Event(appInstance, "Normal", "InstallStarted", "App is entering install stage")
 
 		dependencies, err := utils.GetAppDependencies(appInstance.Spec.Name)
 		if err != nil {
@@ -530,6 +540,7 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	}
 
 	if lastStatus == "installation_finished" {
+		r.Recorder.Event(appInstance, "Normal", "InstallFinished", "App is successfully installed")
 		appName := appInstance.ObjectMeta.Name
 
 		if appInstance.Status.InstalledVersion == "" {
