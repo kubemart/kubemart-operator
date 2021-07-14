@@ -24,6 +24,7 @@ package controllers
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -32,20 +33,21 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/tools/record"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
 	appv1alpha1 "github.com/kubemart/kubemart-operator/api/v1alpha1"
-	batchv1alpha1 "github.com/kubemart/kubemart-operator/api/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 )
 
 // JobWatcherReconciler reconciles a JobWatcher object
 type JobWatcherReconciler struct {
 	client.Client
-	Log    logr.Logger
-	Scheme *runtime.Scheme
+	Log      logr.Logger
+	Scheme   *runtime.Scheme
+	Recorder record.EventRecorder
 }
 
 // +kubebuilder:rbac:groups=batch,resources=jobs,verbs=get;list;watch;create;update;patch;delete
@@ -59,7 +61,7 @@ func (r *JobWatcherReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 	ctx := context.Background()
 	log := r.Log.WithValues("JobWatcher", req.NamespacedName)
 
-	watcher := &batchv1alpha1.JobWatcher{}
+	watcher := &appv1alpha1.JobWatcher{}
 	err := r.Get(ctx, req.NamespacedName, watcher)
 	if err != nil {
 		if errors.IsNotFound(err) {
@@ -84,8 +86,9 @@ func (r *JobWatcherReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) 
 }
 
 // checkJob will check for Job's conditions and trigger status update for App
-func (r *JobWatcherReconciler) checkJob(ctx context.Context, watcher *batchv1alpha1.JobWatcher) error {
+func (r *JobWatcherReconciler) checkJob(ctx context.Context, watcher *appv1alpha1.JobWatcher) error {
 	log := r.Log.WithValues("JobWatcher", watcher.Namespace+"/"+watcher.Name)
+	r.Recorder.Event(watcher, "Normal", "CheckJobStarted", "JobWatcher is checking if the Job is complete")
 
 	jobName := watcher.Spec.JobName
 	jobNamespace := watcher.Spec.Namespace
@@ -115,10 +118,11 @@ func (r *JobWatcherReconciler) checkJob(ctx context.Context, watcher *batchv1alp
 
 // updateAppAndWatcherStatus will update App's status when the launcher Job has completed
 // launching the kubemart-daemon pod (to install the actual app). It will also update JobWatcher status.
-func (r *JobWatcherReconciler) updateAppAndWatcherStatus(jobStatus string, watcher *batchv1alpha1.JobWatcher) error {
+func (r *JobWatcherReconciler) updateAppAndWatcherStatus(jobStatus string, watcher *appv1alpha1.JobWatcher) error {
 	log := r.Log.WithValues("JobWatcher", watcher.Namespace+"/"+watcher.Name)
 	ctx := context.Background()
 	log.Info("Updating app status", "status", jobStatus)
+	r.Recorder.Event(watcher, "Normal", "UpdateAppAndJobWatcherStarted", fmt.Sprintf("Updating App's LastStatus field to %s", jobStatus))
 
 	jobName := watcher.Spec.JobName
 	appNamespacedName := types.NamespacedName{
@@ -167,12 +171,13 @@ func (r *JobWatcherReconciler) updateAppAndWatcherStatus(jobStatus string, watch
 		return err
 	}
 
+	r.Recorder.Event(watcher, "Normal", "UpdateAppAndJobWatcherFinished", "App and JobWatcher are successfully updated")
 	return nil
 }
 
 // SetupWithManager defines how the controller will watch for resources
 func (r *JobWatcherReconciler) SetupWithManager(mgr ctrl.Manager) error {
 	return ctrl.NewControllerManagedBy(mgr).
-		For(&batchv1alpha1.JobWatcher{}).
+		For(&appv1alpha1.JobWatcher{}).
 		Complete(r)
 }
