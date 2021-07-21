@@ -57,6 +57,9 @@ const (
 // that means update watcher has been deployed.
 var updateWatcher = make(map[string]bool)
 
+// Used in App deletion process
+var finalizerName = "finalizers.kubemart.civo.com"
+
 // AppReconciler reconciles a App object
 type AppReconciler struct {
 	client.Client
@@ -95,7 +98,6 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 	lastStatus := appInstance.Status.LastStatus
 	action := appInstance.Spec.Action
 
-	finalizerName := "finalizers.kubemart.civo.com"
 	if appInstance.ObjectMeta.DeletionTimestamp.IsZero() {
 		// The object is not being deleted, so if it does not have our finalizer,
 		// then lets add the finalizer and update the object
@@ -108,10 +110,24 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 		}
 	} else {
 		// The object is being deleted
+
+		// avoid reconciler from rerun this block again and again while waiting for app's
+		// namespace to get terminated
+		if appInstance.Status.IsBeingTerminated {
+			return ctrl.Result{}, nil // stop reconcile
+		}
+
+		appInstance.Status.IsBeingTerminated = true
+		err := r.Status().Update(context.Background(), appInstance)
+		if err != nil {
+			return reconcile.Result{}, err // restart reconcile
+		}
+
+		// add an event
 		r.Recorder.Event(appInstance, "Normal", "UninstallStarted", "App is entering uninstall stage")
 
 		// let's first clear the updateWatcher
-		err := r.DeleteUpdateWatcher(appInstance)
+		err = r.DeleteUpdateWatcher(appInstance)
 		if err != nil {
 			return reconcile.Result{}, err // restart reconcile
 		}
@@ -135,43 +151,37 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 			logger.Info("New uninstall Job was launched successfully", "job name", uninstallJob.Name)
 			logger.Info("Waiting for uninstall Job to complete", "job name", uninstallJob.Name)
 
-			// wait until uninstall.sh job completes
-			currentTry := 0
-			maxTries := 60
-			for {
-				currentTry++
-				if currentTry > maxTries {
-					logger.Info("Max tries reached when checking uninstall.sh job status", "job name", uninstallJob.Name)
-					break
+			// Perform app's namespace deletion in goroutine/background so it won't block the reconcile loop.
+			// For example, new app(s) will able to get reconciled without having to wait for the namespace deletion
+			// to fully complete.
+			go func() {
+				// Wait until uninstall.sh job completes
+				currentTry := 0
+				maxTries := 60
+				for {
+					currentTry++
+					if currentTry > maxTries {
+						logger.Info("Max tries reached when checking uninstall.sh job status", "job name", uninstallJob.Name)
+						break
+					}
+
+					uj := &batchv1.Job{}
+					_ = r.Get(context.Background(), types.NamespacedName{
+						Name:      uninstallJob.Name,
+						Namespace: uninstallJob.Namespace,
+					}, uj)
+
+					if !uj.Status.CompletionTime.IsZero() {
+						logger.Info("Job has completed, we are good to delete the app's namespace", "job name", uninstallJob.Name)
+						break
+					}
+
+					time.Sleep(1 * time.Second)
 				}
 
-				uj := &batchv1.Job{}
-				_ = r.Get(context.Background(), types.NamespacedName{
-					Name:      uninstallJob.Name,
-					Namespace: uninstallJob.Namespace,
-				}, uj)
-
-				if !uj.Status.CompletionTime.IsZero() {
-					logger.Info("Job has completed, we are good to delete the app's namespace", "job name", uninstallJob.Name)
-					break
-				}
-
-				time.Sleep(1 * time.Second)
-			}
-
-			// our finalizer is present, so lets delete the app's namespace
-			err := r.ProcessAppNamespaceDeletion(appInstance)
-			if err != nil {
-				// if fail to delete the namespace, return with error so that it can be retried
-				return reconcile.Result{}, err // restart reconcile
-			}
-
-			// remove finalizer from the App
-			appInstance.ObjectMeta.Finalizers = utils.RemoveString(appInstance.ObjectMeta.Finalizers, finalizerName)
-			err = r.Update(context.Background(), appInstance)
-			if err != nil {
-				return reconcile.Result{}, err // restart reconcile
-			}
+				// Delete the namespace
+				r.ProcessAppNamespaceDeletion(appInstance)
+			}()
 		}
 
 		// Stop reconciliation as the item is being deleted and does not have finalizer
@@ -669,6 +679,38 @@ func (r *AppReconciler) DeleteUpdateWatcher(app *appv1alpha1.App) error {
 	return nil
 }
 
+// RemoveFinalizerFromApp - TODO: write description
+func (r *AppReconciler) RemoveFinalizerFromApp(appName string) error {
+	apps := &v1alpha1.AppList{}
+	err := r.List(context.Background(), apps)
+	if err != nil {
+		return err
+	}
+
+	found := false
+	app := &v1alpha1.App{}
+	for _, a := range apps.Items {
+		if a.ObjectMeta.Name == appName {
+			app = &a
+			found = true
+			break
+		}
+	}
+
+	if !found {
+		return fmt.Errorf("app %s not found", appName)
+	}
+
+	r.Log.Info("Removing finalizer", "app", appName)
+	app.ObjectMeta.Finalizers = utils.RemoveString(app.ObjectMeta.Finalizers, finalizerName)
+	err = r.Update(context.Background(), app)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 // ProcessAppNamespaceDeletion will run after user deletes the App and before the App's
 // finalizer get removed. It will delete the app's namespace - which ideally will delete
 // all the app's Kubernetes resources.
@@ -680,14 +722,12 @@ func (r *AppReconciler) ProcessAppNamespaceDeletion(app *appv1alpha1.App) error 
 	namespace, err := utils.GetNamespaceFromAppManifest(appName)
 	if err != nil {
 		logger.Error(err, "Unable to determine app namespace from app's manifest.yaml file")
-		// stop here so the caller can continue with removing finalizer from Custom Resource
-		return nil
+		return r.RemoveFinalizerFromApp(appName)
 	}
 
 	if namespace == "" {
 		logger.Info("Unable to delete namespace because this app does not have namespace declared in its manifest.yaml file")
-		// stop here so the caller can continue with removing finalizer from Custom Resource
-		return nil
+		return r.RemoveFinalizerFromApp(appName)
 	}
 
 	namespaceExists, err := r.IsNamespaceExist(namespace)
@@ -706,17 +746,7 @@ func (r *AppReconciler) ProcessAppNamespaceDeletion(app *appv1alpha1.App) error 
 	}
 
 	logger.Info("Waiting for namespace deletion to finish...", "namespace", namespace)
-	var sleepDuration time.Duration = 5 // seconds
-	var maxTries int = 60
-	var tries int = 0
-	var clearNamespaceFinalizer bool = false
-
 	for {
-		if tries > maxTries {
-			clearNamespaceFinalizer = true
-			break
-		}
-
 		nsExists, err := r.IsNamespaceExist(namespace)
 		if err != nil {
 			logger.Error(err, "Unable to check namespace")
@@ -726,22 +756,9 @@ func (r *AppReconciler) ProcessAppNamespaceDeletion(app *appv1alpha1.App) error 
 		if !nsExists {
 			break
 		}
-
-		time.Sleep(sleepDuration * time.Second)
-		tries++
 	}
 
-	if clearNamespaceFinalizer {
-		logger.Info("Clearing namespace finalizer...")
-		app.ObjectMeta.Finalizers = []string{}
-		err := r.Update(context.Background(), app, &client.UpdateOptions{})
-		if err != nil {
-			logger.Error(err, "Unable to clear namespace finalizers", "namespace", namespace)
-			return err
-		}
-	}
-
-	return nil
+	return r.RemoveFinalizerFromApp(appName)
 }
 
 // GetApps will return all created Apps in form of AppList object
