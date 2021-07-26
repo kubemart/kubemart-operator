@@ -149,25 +149,6 @@ var _ = Describe("App controller\n", func() {
 			}, timeout, interval).ShouldNot(BeEmpty())
 		})
 
-		It("Should have dependency pod (longhorn) created", func() {
-			pods := &v1.PodList{}
-
-			Eventually(func() int {
-				err := directClient.List(ctx, pods, &client.ListOptions{
-					Namespace: "longhorn-system",
-					LabelSelector: labels.SelectorFromSet(map[string]string{
-						"app": "longhorn-ui",
-					}),
-				})
-
-				if err != nil {
-					return -1
-				}
-
-				return len(pods.Items)
-			}, timeout, interval).Should(Equal(1))
-		})
-
 		It("Should have dependency pod (mariadb) created", func() {
 			pods := &v1.PodList{}
 
