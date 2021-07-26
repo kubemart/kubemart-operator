@@ -107,9 +107,6 @@ type AppStatus struct {
 
 	// Will return the latest version from kubernetes-marketplace repository
 	NewUpdateVersion string `json:"new_update_version,omitempty"`
-
-	// Will return 'true' if the app is being terminated (waiting for namespace deletion to complete)
-	IsBeingTerminated bool `json:"is_being_terminated,omitempty"`
 }
 
 // +kubebuilder:object:root=true

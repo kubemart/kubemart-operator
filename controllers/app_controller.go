@@ -60,6 +60,10 @@ var updateWatcher = make(map[string]bool)
 // Used in App deletion process
 var finalizerName = "finalizers.kubemart.civo.com"
 
+// Terminating apps will be added into this map and released when the
+// namespace is deleted
+var terminatingApps = make(map[string]bool)
+
 // AppReconciler reconciles a App object
 type AppReconciler struct {
 	client.Client
@@ -113,15 +117,12 @@ func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
 
 		// avoid reconciler from rerun this block again and again while waiting for app's
 		// namespace to get terminated
-		if appInstance.Status.IsBeingTerminated {
+		_, isTerminating := terminatingApps[appInstance.ObjectMeta.Name]
+		if isTerminating {
 			return ctrl.Result{}, nil // stop reconcile
 		}
 
-		appInstance.Status.IsBeingTerminated = true
-		err := r.Status().Update(context.Background(), appInstance)
-		if err != nil {
-			return reconcile.Result{}, err // restart reconcile
-		}
+		terminatingApps[appInstance.ObjectMeta.Name] = true
 
 		// add an event
 		r.Recorder.Event(appInstance, "Normal", "UninstallStarted", "App is entering uninstall stage")
@@ -681,6 +682,7 @@ func (r *AppReconciler) DeleteUpdateWatcher(app *appv1alpha1.App) error {
 
 // RemoveFinalizerFromApp - TODO: write description
 func (r *AppReconciler) RemoveFinalizerFromApp(appName string) error {
+	logger := r.Log.WithValues("app", appName)
 	apps := &v1alpha1.AppList{}
 	err := r.List(context.Background(), apps)
 	if err != nil {
@@ -701,12 +703,15 @@ func (r *AppReconciler) RemoveFinalizerFromApp(appName string) error {
 		return fmt.Errorf("app %s not found", appName)
 	}
 
-	r.Log.Info("Removing finalizer", "app", appName)
+	logger.Info("Removing finalizer")
 	app.ObjectMeta.Finalizers = utils.RemoveString(app.ObjectMeta.Finalizers, finalizerName)
 	err = r.Update(context.Background(), app)
 	if err != nil {
 		return err
 	}
+
+	logger.Info("Removing terminating app from map")
+	delete(terminatingApps, appName)
 
 	return nil
 }
