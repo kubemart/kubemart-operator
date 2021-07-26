@@ -94,10 +94,6 @@ spec:
                 description: The installed version, retrieved from kubernetes-marketplace/app/manifest.yaml
                   file
                 type: string
-              is_being_terminated:
-                description: Will return 'true' if the app is being terminated (waiting
-                  for namespace deletion to complete)
-                type: boolean
               jobs_executed:
                 additionalProperties:
                   description: JobInfo contains information about each Job we launched
