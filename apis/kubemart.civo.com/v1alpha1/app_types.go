@@ -116,6 +116,7 @@ type AppStatus struct {
 // +kubebuilder:printcolumn:name="Version",type="string",JSONPath=".status.installed_version",description="Installed version of the App"
 // +genclient
 // k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+
 // App is the Schema for the apps API
 type App struct {
 	metav1.TypeMeta   `json:",inline"`
