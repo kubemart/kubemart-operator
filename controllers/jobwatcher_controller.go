@@ -38,7 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	appv1alpha1 "github.com/kubemart/kubemart-operator/api/v1alpha1"
+	appv1alpha1 "github.com/kubemart/kubemart-operator/apis/kubemart.civo.com/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 )
 

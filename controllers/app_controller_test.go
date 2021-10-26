@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	v1alpha1 "github.com/kubemart/kubemart-operator/api/v1alpha1"
+	v1alpha1 "github.com/kubemart/kubemart-operator/apis/kubemart.civo.com/v1alpha1"
 	"github.com/kubemart/kubemart-operator/pkg/utils"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"

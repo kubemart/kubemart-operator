@@ -27,7 +27,7 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
-	appv1alpha1 "github.com/kubemart/kubemart-operator/api/v1alpha1"
+	appv1alpha1 "github.com/kubemart/kubemart-operator/apis/kubemart.civo.com/v1alpha1"
 	"github.com/kubemart/kubemart-operator/controllers"
 	// +kubebuilder:scaffold:imports
 )

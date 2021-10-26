@@ -24,8 +24,8 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/kubemart/kubemart-operator/api/v1alpha1"
-	appv1alpha1 "github.com/kubemart/kubemart-operator/api/v1alpha1"
+	"github.com/kubemart/kubemart-operator/apis/kubemart.civo.com/v1alpha1"
+	appv1alpha1 "github.com/kubemart/kubemart-operator/apis/kubemart.civo.com/v1alpha1"
 	"github.com/kubemart/kubemart-operator/pkg/utils"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"

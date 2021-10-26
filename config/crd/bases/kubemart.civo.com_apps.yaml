@@ -30,7 +30,8 @@ spec:
     name: v1alpha1
     schema:
       openAPIV3Schema:
-        description: App is the Schema for the apps API
+        description: k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
+          App is the Schema for the apps API
         properties:
           apiVersion:
             description: 'APIVersion defines the versioned schema of this representation
