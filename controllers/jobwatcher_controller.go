@@ -57,8 +57,7 @@ type JobWatcherReconciler struct {
 
 // Reconcile is called either when one of our CRDs changed
 // or if the returned ctrl.Result isn’t empty (or an error is returned)
-func (r *JobWatcherReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *JobWatcherReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("JobWatcher", req.NamespacedName)
 
 	watcher := &appv1alpha1.JobWatcher{}
