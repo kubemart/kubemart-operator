@@ -8,6 +8,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v2
 
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.16'
+      
+      - name: Check Go version
+        run: go version
+
       - name: Run utils tests
         run: go test -v ./pkg/utils
 
