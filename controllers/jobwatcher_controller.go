@@ -38,7 +38,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
 
-	appv1alpha1 "github.com/kubemart/kubemart-operator/api/v1alpha1"
+	appv1alpha1 "github.com/kubemart/kubemart-operator/apis/kubemart.civo.com/v1alpha1"
 	corev1 "k8s.io/api/core/v1"
 )
 
@@ -57,8 +57,7 @@ type JobWatcherReconciler struct {
 
 // Reconcile is called either when one of our CRDs changed
 // or if the returned ctrl.Result isn’t empty (or an error is returned)
-func (r *JobWatcherReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *JobWatcherReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	log := r.Log.WithValues("JobWatcher", req.NamespacedName)
 
 	watcher := &appv1alpha1.JobWatcher{}

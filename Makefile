@@ -16,6 +16,16 @@ IMG ?= controller:latest
 # Produce CRDs that work back to Kubernetes 1.11 (no version conversion)
 CRD_OPTIONS ?= "crd:trivialVersions=true,crdVersions=v1"
 
+# For clientset generator
+# https://github.com/kubernetes/code-generator/blob/master/generate-groups.sh
+# Assumptions:
+# - Your `$GOPATH` value is `/Users/<username>/go`
+# - You have clone `code-generator` project and located at `/Users/<username>/go/src/github.com/kubernetes/code-generator`
+# - This kubemart-operator project is located inside `$GOPATH` e.g. `/Users/<username>/go/src/github.com/kubemart/kubemart-operator`
+# - In that `code-generator` directory, you have checkout into the right branch e.g. `$ git checkout origin/release-1.22`
+# - Why `1.22`? Because we are using `v0.22.0` for 'k8s.io/api', 'k8s.io/apimachinery' and 'k8s.io/client-go' in go.mod file
+CODEGEN ?= $(shell go env GOPATH)/src/github.com/kubernetes/code-generator
+
 # Get the currently used golang install path (in GOPATH/bin, unless GOBIN is set)
 ifeq (,$(shell go env GOBIN))
 GOBIN=$(shell go env GOPATH)/bin
@@ -69,6 +79,13 @@ vet:
 generate: controller-gen
 	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./..."
 
+# Generate clientset (client-go)
+generate-clientset: generate manifests
+	@echo "-----------------------"
+	@echo "Generating clientset..."
+	@echo "-----------------------"
+	$(CODEGEN)/generate-groups.sh all github.com/kubemart/kubemart-operator/pkg/client github.com/kubemart/kubemart-operator/apis "kubemart.civo.com:v1alpha1" --go-header-file "$(PWD)/hack/boilerplate.go.txt"
+
 # Build the docker image
 docker-build:
 	docker build . -t ${IMG}
@@ -90,7 +107,7 @@ ifeq (, $(shell which controller-gen))
 	CONTROLLER_GEN_TMP_DIR=$$(mktemp -d) ;\
 	cd $$CONTROLLER_GEN_TMP_DIR ;\
 	go mod init tmp ;\
-	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.3.0 ;\
+	go get sigs.k8s.io/controller-tools/cmd/controller-gen@v0.5.0 ;\
 	rm -rf $$CONTROLLER_GEN_TMP_DIR ;\
 	}
 CONTROLLER_GEN=$(GOBIN)/controller-gen

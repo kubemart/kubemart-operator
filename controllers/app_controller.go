@@ -24,8 +24,8 @@ import (
 	"time"
 
 	"github.com/go-logr/logr"
-	"github.com/kubemart/kubemart-operator/api/v1alpha1"
-	appv1alpha1 "github.com/kubemart/kubemart-operator/api/v1alpha1"
+	"github.com/kubemart/kubemart-operator/apis/kubemart.civo.com/v1alpha1"
+	appv1alpha1 "github.com/kubemart/kubemart-operator/apis/kubemart.civo.com/v1alpha1"
 	"github.com/kubemart/kubemart-operator/pkg/utils"
 	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
@@ -82,8 +82,7 @@ type KubemartConfigMap struct {
 
 // Reconcile is called either when one of our CRDs changed
 // or if the returned ctrl.Result isn’t empty (or an error is returned)
-func (r *AppReconciler) Reconcile(req ctrl.Request) (ctrl.Result, error) {
-	ctx := context.Background()
+func (r *AppReconciler) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
 	logger := r.Log.WithValues("app", req.NamespacedName)
 
 	// Fetch the App instance

@@ -115,6 +115,7 @@ type AppStatus struct {
 // +kubebuilder:printcolumn:name="Current Status",type="string",JSONPath=".status.last_status",description="Latest status of the App"
 // +kubebuilder:printcolumn:name="Version",type="string",JSONPath=".status.installed_version",description="Installed version of the App"
 // +genclient
+// k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object
 
 // App is the Schema for the apps API
 type App struct {
