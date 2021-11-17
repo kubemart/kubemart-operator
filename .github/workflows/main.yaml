@@ -57,6 +57,14 @@ jobs:
       INDEX_IMG_NAME: kubemart-olm-index
       BUNDLE_ZIP_FILE: olm-bundle.zip
     steps:
+      - name: Setup Go
+        uses: actions/setup-go@v2
+        with:
+          go-version: '1.17'
+      
+      - name: Check Go version
+        run: go version
+
       - name: Checkout kubemart-operator repo
         uses: actions/checkout@v2
 
