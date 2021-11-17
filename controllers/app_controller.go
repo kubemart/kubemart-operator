@@ -45,6 +45,7 @@ import (
 // +kubebuilder:rbac:groups="",resources=configmaps,verbs=get;list;watch
 // +kubebuilder:rbac:groups=kubemart.civo.com,resources=apps,verbs=get;list;watch;create;update;patch;delete
 // +kubebuilder:rbac:groups=kubemart.civo.com,resources=apps/status,verbs=get;update;patch
+// +kubebuilder:rbac:groups=coordination.k8s.io,resources=leases,verbs=get;list;create;update
 
 const (
 	// waiting period between "did all app's dependencies have been installed" checks
