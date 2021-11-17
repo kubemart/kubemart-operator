@@ -5,4 +5,4 @@ kind: Kustomization
 images:
 - name: controller
   newName: docker.io/kubemart/kubemart-operator
-  newTag: v0.0.70
+  newTag: v0.0.74
