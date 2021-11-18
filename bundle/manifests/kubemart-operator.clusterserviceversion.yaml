@@ -222,4 +222,4 @@ spec:
     name: Civo
     url: www.civo.com
   version: 0.0.75
-  replaces: kubemart-operator.v0.0.70
+  replaces: kubemart-operator.v0.0.74
