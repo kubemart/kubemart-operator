@@ -6,7 +6,7 @@ metadata:
     capabilities: Basic Install
     operators.operatorframework.io/builder: operator-sdk-v1.4.2
     operators.operatorframework.io/project_layout: go.kubebuilder.io/v2
-  name: kubemart-operator.v0.0.77
+  name: kubemart-operator.v0.0.78
   namespace: placeholder
 spec:
   apiservicedefinitions: {}
@@ -159,7 +159,7 @@ spec:
                       - --enable-leader-election
                     command:
                       - /manager
-                    image: docker.io/kubemart/kubemart-operator:v0.0.77
+                    image: docker.io/kubemart/kubemart-operator:v0.0.78
                     name: manager
                     resources:
                       limits:
@@ -221,5 +221,5 @@ spec:
   provider:
     name: Civo
     url: www.civo.com
-  version: 0.0.74
-  replaces: kubemart-operator.v0.0.76
+  version: 0.0.78
+  replaces: kubemart-operator.v0.0.74
