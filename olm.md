@@ -20,7 +20,7 @@ In the event when the "stuck" happen, what should you do?
 
 Let's say the running operator in the cluster is v0.0.74 and you made a new release, v0.0.77. After waiting for the OLM operator to perform its recurring "checks" and the v0.0.74 operator doesn't get updated to v0.0.77, you should make a new release (v0.0.78) by following steps below:
 
-1. Open _bundle/manifests/kubemart-operator.clusterserviceversion.yaml_ file
+1. Open [_bundle/manifests/kubemart-operator.clusterserviceversion.yaml_](bundle/manifests/kubemart-operator.clusterserviceversion.yaml) file
 
 2. Change the `.spec.version` to the stuck version (e.g. 0.0.74) without `v` ([example commit](https://github.com/kubemart/kubemart-operator/commit/45b0617648120a73cefceb7a2d5a96147a6762dc))
 
